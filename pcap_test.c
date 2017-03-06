@@ -49,7 +49,7 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
     packet += sizeof(struct libnet_ethernet_hdr);
     ether_type = ntohs(ep->ether_type);
 
-	printf("\n*****layer 2: ethernet *****\n");
+	printf("\n***** Ethernet *****\n");
 	printf("Src mac : [");
 	for(int i=0; i<6; i++) {
 	printf("%02x", ep->ether_shost[i]);
@@ -65,13 +65,13 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
 
       
 	iph = (struct libnet_ipv4_hdr *)packet;
-	printf("\n*****layer 3: ip header *****\n");
+	printf("\n***** Ip header *****\n");
 	printf("Src ip : %s\n", inet_ntoa(iph->ip_src));
 	printf("Dst ip : %s\n", inet_ntoa(iph->ip_dst));
 
 
 	tcph = (struct libnet_tcp_hdr *)(packet + iph->ip_hl * 4);
-	printf("\n*****layer 4: tcp header *****\n");
+	printf("\n***** Tcp header *****\n");
 	printf("Src Port : %d\n" , ntohs(tcph->th_sport));
 	printf("Dst Port : %d\n" , ntohs(tcph->th_dport));
 
@@ -111,25 +111,6 @@ int main(int argc, char **argv)
         exit(1);
     }
     printf("Device : %s\n", dev);
-
-
-    ret = pcap_lookupnet(dev, &netp, &maskp, errbuf);
-    if (ret == -1)
-    {
-        printf("%s\n", errbuf);
-        exit(1);
-    }
-
-
-    net_addr.s_addr = netp;
-    net = inet_ntoa(net_addr);
-    printf("Network : %s\n", net);
-
-    mask_addr.s_addr = maskp;
-    mask = inet_ntoa(mask_addr);
-
-    printf("Subnet Mask : %s\n", mask);
-    printf("=======================\n");
 
 
     pcd = pcap_open_live(dev, 4096, NONPROMISCUOUS, -1, errbuf);
