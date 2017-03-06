@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 
 #define ETHER_ADDR_LEN 6
-#define NONPROMISCUOUS 0 // <-> 1
 
 
 struct libnet_ether_addr {
@@ -81,20 +80,10 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
 
 int main(int argc, char **argv)
 {
-
-    int ret;
-
-    char *dev;    
-    char *net;    
-    char *mask;  
+    char *dev;     
     char errbuf[PCAP_ERRBUF_SIZE];
 
-    bpf_u_int32 netp;
-    bpf_u_int32 maskp;
-
     struct pcap_pkthdr hdr;
-    struct in_addr net_addr, mask_addr;
-
     pcap_t *pcd;  // packet capture descriptor
 
 
@@ -102,7 +91,6 @@ int main(int argc, char **argv)
 	printf("usage : %s \"Port 80\"\n", argv[0]);
 	return -1;
 	}
-
 
     dev = pcap_lookupdev(errbuf);
     if (dev == NULL)
@@ -113,14 +101,14 @@ int main(int argc, char **argv)
     printf("Device : %s\n", dev);
 
 
-    pcd = pcap_open_live(dev, 4096, NONPROMISCUOUS, -1, errbuf);
+    pcd = pcap_open_live(dev, 4096, 1, 1000, errbuf);
     if (pcd == NULL)
     {
         printf("%s\n", errbuf);
         exit(1);
     }
 
-    pcap_loop(pcd, atoi(argv[1]), callback, NULL);
+    pcap_loop(pcd, 0, callback, NULL);
 }
 
 
