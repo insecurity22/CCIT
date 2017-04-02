@@ -16,24 +16,25 @@ struct ethhdr *ep;
 struct ip *iph;
 struct tcphdr *tcph;
 
+void eth_cal(unsigned char *packet) {
+    for (int i = 0; i<6; i++) {
+        printf("%02x", packet[i]);
+        if (i != 5) printf(":");
+    }
+    printf("]\n");
+}
+
 int Printf_ethernet(const u_char *packet) {
 
     ep = (struct ethhdr *)packet;
 
     printf("\n ***** Ethernet *****\n");
     printf("Src mac : [");
-    for (int i = 0; i<6; i++) {
-        printf("%02x", ep->h_source[i]);
-        if (i != 5) printf(":");
-    }
-    printf("]\n");
+    eth_cal(ep->h_source);
+
 
     printf("Dst mac : [");
-    for (int i = 0; i<6; i++) {
-        printf("%02x", ep->h_dest[i]);
-        if (i != 5) printf(":");
-    }
-    printf("]\n");
+    eth_cal(ep->h_dest);
 }
 
 
