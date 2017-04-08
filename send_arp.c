@@ -14,13 +14,33 @@
 
 #define PROMISCUOUS 1
 
+    struct ether_arp_hdr
+    {
+          unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
+          unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
+          __be16        h_proto;		/* packet type ID field	*/
+
+
+          unsigned short int ar_hrd;		/* Format of hardware address.  */
+          unsigned short int ar_pro;		/* Format of protocol address.  */
+          unsigned char ar_hln;		/* Length of hardware address.  */
+          unsigned char ar_pln;		/* Length of protocol address.  */
+          unsigned short int ar_op;		/* ARP opcode (command).  */
+
+          unsigned char __ar_sha[ETH_ALEN];	/* Sender hardware address.  */
+          unsigned int __ar_sip;		/* Sender IP address.  */
+          unsigned char __ar_tha[ETH_ALEN];	/* Target hardware address.  */
+          unsigned int __ar_tip;		/* Target IP address.  */
+
+    };
+
 
 int value_change(char *argv, unsigned char *packet, char text[]) {
 
-    int ipaddr = 0;
+    int ipaddr = 0, i = 1;
     char *ipaddr3;
-    int i=1;
     char *original = malloc(sizeof(char));
+
     strcpy(original, argv);
 
     ipaddr3 = strtok(argv, text);
@@ -43,14 +63,12 @@ int value_change(char *argv, unsigned char *packet, char text[]) {
 
 int main(int argc, char *argv[])
 {
-    struct ethhdr *ep;
-    struct arphdr *arp;
-  //  struct sockaddr_in server_addr;
+      struct ether_arp_hdr *eth_arp_hdr;
 
     pcap_t *pcd; // packet captuer descripter
     char *dev; // device
     char errbuf[PCAP_ERRBUF_SIZE];
-    const u_char *packet;
+   // const u_char *packet;
     char *original;
     char *original2;
 
@@ -70,59 +88,60 @@ int main(int argc, char *argv[])
 
 
 
-    ep = (struct ethhdr *)packet;
-    packet = (char *)malloc(42);
+    eth_arp_hdr = (char *)malloc(42);
 
     printf("Ethernet Destination : ");
-    original = value_change(argv[5], ep->h_dest, ":");
+    original = value_change(argv[5], eth_arp_hdr->h_dest, ":");
 
     printf("Ethernet Source : ");
-    original2 = value_change(argv[4], ep->h_source, ":");
+    original2 = value_change(argv[4], eth_arp_hdr->h_source, ":");
 
-    ep->h_proto = htons(ETHERTYPE_ARP);
-    printf("ether-type : 0x0%x\n\n", ep->h_proto);
-
-
+    eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
+    printf("ether-type : 0x0%x\n\n", eth_arp_hdr->h_proto);
 
 
 
-    packet += sizeof(struct ethhdr);
-    arp = (struct arphdr *)packet;
+    //packet += sizeof(struct ethhdr);
+    //arp = (struct arphdr *)packet;
 
     // ARP data
-    arp->ar_hrd = 0x0001;
-    printf("ar_hdr : %02x\n", arp->ar_hrd);
-    arp->ar_pro = 0x0800;
-    printf("ar_pro : %02x\n", arp->ar_pro);
-    arp->ar_hln = 0x06;
-    printf("ar_hln : %02x\n", arp->ar_hln);
-    arp->ar_pln = 0x04;
-    printf("ar_pln : %02x\n", arp->ar_pln);
-    arp->ar_op = 0x0002;
-    printf("ar_op : %02x\n\n", arp->ar_op);
+    eth_arp_hdr->ar_hrd = htons(0x0001);
+    printf("ar_hdr : %02x\n", eth_arp_hdr->ar_hrd);
+    eth_arp_hdr->ar_pro = htons(0x0800);
+    printf("ar_pro : %02x\n", eth_arp_hdr->ar_pro);
+    eth_arp_hdr->ar_hln = 0x06;
+    printf("ar_hln : %02x\n", eth_arp_hdr->ar_hln);
+    eth_arp_hdr->ar_pln = 0x04;
+    printf("ar_pln : %02x\n", eth_arp_hdr->ar_pln);
+    eth_arp_hdr->ar_op = htons(0x0002);
+    printf("ar_op : %02x\n\n", eth_arp_hdr->ar_op);
 
 
     printf("Sender mac : ");
     strcpy(argv[4], original);
-    value_change(argv[4], arp->__ar_sha, ":");
+    value_change(argv[4], eth_arp_hdr->__ar_sha, ":");
 
-
-    printf("Sender ip : ");
-    value_change(argv[2], arp->__ar_sip, ".");
-
+    eth_arp_hdr->__ar_sip = (int *)malloc(14);
+    eth_arp_hdr->__ar_sip = inet_addr(argv[2]);
+    printf("Sender ip  : %02x\n", eth_arp_hdr->__ar_sip);
 
     printf("Target mac : ");
     strcpy(argv[5], original2);
-    value_change(argv[5], arp->__ar_tha, ":");
+    value_change(argv[5], eth_arp_hdr->__ar_tha, ":");
 
 
-    printf("Target ip : ");
-    value_change(argv[3], arp->__ar_tip, ".");
+
+    eth_arp_hdr->__ar_tip = inet_addr(argv[3]);
+    printf("Target ip  : %02x\n", eth_arp_hdr->__ar_tip);
 
 
-    if (pcap_sendpacket(pcd, ep, 42) != 0) {
+
+    if (pcap_sendpacket(pcd, eth_arp_hdr, 42) != 0) {
         printf("Error sending the packet\n");
         return -1;
     }
+    else printf("good");
 }
+
+
 
