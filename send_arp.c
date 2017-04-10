@@ -28,14 +28,14 @@
           unsigned short int ar_op;		/* ARP opcode (command).  */
 
           unsigned char __ar_sha[ETH_ALEN];	/* Sender hardware address.  */
-          unsigned int __ar_sip;		/* Sender IP address.  */
+          unsigned char __ar_sip[4];		/* Sender IP address.  */
           unsigned char __ar_tha[ETH_ALEN];	/* Target hardware address.  */
-          unsigned int __ar_tip;		/* Target IP address.  */
+          unsigned char __ar_tip[4];		/* Target IP address.  */
 
     };
 
 
-int value_change(char *argv, unsigned char *packet, char text[]) {
+int value_change(char *argv, unsigned char *packet, char text[], int num) {
 
     int ipaddr = 0, i = 1;
     char *ipaddr3;
@@ -44,12 +44,12 @@ int value_change(char *argv, unsigned char *packet, char text[]) {
     strcpy(original, argv);
 
     ipaddr3 = strtok(argv, text);
-    ipaddr = strtol(ipaddr3, NULL, 16);
+    ipaddr = strtol(ipaddr3, NULL, num);
     packet[0] = ipaddr;
     printf("%02x ", packet[0]);
 
     while(ipaddr3 = strtok(NULL, text)) {
-        ipaddr = strtol(ipaddr3, NULL, 16);
+        ipaddr = strtol(ipaddr3, NULL, num);
         packet[i] = ipaddr;
         printf("%02x ", packet[i]);
         i++;
@@ -68,9 +68,9 @@ int main(int argc, char *argv[])
     pcap_t *pcd; // packet captuer descripter
     char *dev; // device
     char errbuf[PCAP_ERRBUF_SIZE];
-   // const u_char *packet;
-    char *original;
     char *original2;
+    char *original = malloc(sizeof(char));
+
 
 
 
@@ -91,10 +91,10 @@ int main(int argc, char *argv[])
     eth_arp_hdr = (char *)malloc(42);
 
     printf("Ethernet Destination : ");
-    original = value_change(argv[5], eth_arp_hdr->h_dest, ":");
+    original = value_change(argv[5], eth_arp_hdr->h_dest, ":", 16);
 
     printf("Ethernet Source : ");
-    original2 = value_change(argv[4], eth_arp_hdr->h_source, ":");
+    original2 = value_change(argv[4], eth_arp_hdr->h_source, ":", 16);
 
     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
     printf("ether-type : 0x0%x\n\n", eth_arp_hdr->h_proto);
@@ -119,20 +119,23 @@ int main(int argc, char *argv[])
 
     printf("Sender mac : ");
     strcpy(argv[4], original);
-    value_change(argv[4], eth_arp_hdr->__ar_sha, ":");
+    value_change(argv[4], eth_arp_hdr->__ar_sha, ":", 16);
 
-    eth_arp_hdr->__ar_sip = (int *)malloc(14);
-    eth_arp_hdr->__ar_sip = inet_addr(argv[2]);
-    printf("Sender ip  : %02x\n", eth_arp_hdr->__ar_sip);
+
+   // eth_arp_hdr->__ar_sip = inet_addr(argv[2]);
+    printf("Sender ip : ");
+    value_change(argv[2], eth_arp_hdr->__ar_sip, ".", 10);
+
 
     printf("Target mac : ");
     strcpy(argv[5], original2);
-    value_change(argv[5], eth_arp_hdr->__ar_tha, ":");
+    value_change(argv[5], eth_arp_hdr->__ar_tha, ":", 16);
 
 
 
-    eth_arp_hdr->__ar_tip = inet_addr(argv[3]);
-    printf("Target ip  : %02x\n", eth_arp_hdr->__ar_tip);
+   // eth_arp_hdr->__ar_tip = inet_addr(argv[3]);
+    printf("Target ip : ", eth_arp_hdr->__ar_tip);
+    value_change(argv[3], eth_arp_hdr->__ar_tip, ".", 10);
 
 
 
@@ -140,7 +143,7 @@ int main(int argc, char *argv[])
         printf("Error sending the packet\n");
         return -1;
     }
-    else printf("good");
+    else printf("\nGood\n");
 }
 
 
