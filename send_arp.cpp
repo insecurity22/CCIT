@@ -16,7 +16,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
-
 using namespace std;
 
 #define PROMISCUOUS 1
@@ -50,6 +49,7 @@ int main(int argc, char *argv[])
 
     ether_arp_hdr *eth_arp_hdr;
     eth_arp_hdr = new ether_arp_hdr;
+
     /*
     if (argc != 6) {
         cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac";
@@ -73,23 +73,42 @@ int main(int argc, char *argv[])
 
     // =========================================================
 
+    struct ifreq ifr;
+    struct sockaddr_in *sin;
+    sockaddr_in addr;
     cout << "Ethernet Destination : ";
-    // value_change(argv[5], eth_arp_hdr->h_dest, ":", 16);
-
-
-
-
-    // =========================================================
-    cout << "Ethernet Source : " << endl;
     int fd;
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd < 0) {
         cout << "socket error" << endl;
         return -1;
     }
+    /*
+    char hi[10];
+   for(int i=0; i<6; i++) {
+       for(int j=0; j<2; j++){
+            strncat(hi, &argv[5][j], 2);
+            cout << hi << endl;
+       }
 
-    struct ifreq ifr;
-    struct sockaddr_in *sin;
+       eth_arp_hdr->h_dest[i] = hi[i];
+       cout << "hi" << eth_arp_hdr->h_dest[i];
+       hi[0] = {0,};
+       i++;
+   }
+   sin = (struct sockaddr_in *)&ifr->ifr_addr;
+    char* aa = argv[5];
+    cout << aa << endl;
+const int a = atoi(argv[5]);
+cout << &a;
+
+   */
+    sscanf(argv[5], "%x:%x:%x:%x:%x:%x", &eth_arp_hdr->h_dest[0], &eth_arp_hdr->h_dest[1], &eth_arp_hdr->h_dest[2],
+            &eth_arp_hdr->h_dest[3], &eth_arp_hdr->h_dest[4], &eth_arp_hdr->h_dest[5], &eth_arp_hdr->h_dest[6]);
+
+    // =========================================================
+    cout << "Ethernet Source : " << endl;
+
     strncpy(ifr.ifr_ifrn.ifrn_name, dev, strlen(dev));
     if(ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
         cout << "Mac error" << endl;
@@ -105,7 +124,7 @@ int main(int argc, char *argv[])
     // =========================================================
 
     cout << "Sender ip : " << endl;
-    sockaddr_in addr;
+    //sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr(argv[2]);
     memcpy(&eth_arp_hdr->__ar_sip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
 
@@ -137,13 +156,15 @@ int main(int argc, char *argv[])
     }
 
     cout << "Target mac : ";
+    sscanf(argv[5], "%x:%x:%x:%x:%x:%x", &eth_arp_hdr->__ar_tha[0], &eth_arp_hdr->__ar_tha[1], &eth_arp_hdr->__ar_tha[2],
+            &eth_arp_hdr->__ar_tha[3], &eth_arp_hdr->__ar_tha[4], &eth_arp_hdr->__ar_tha[5], &eth_arp_hdr->__ar_tha[6]);
 
     // =========================================================
-    // eth_arp_hdr->__ar_tip = inet_addr(argv[3]);
+
     cout << "Target ip : " << eth_arp_hdr->__ar_tip;
-    //value_change(argv[3], eth_arp_hdr->__ar_tip, ".", 10);
     addr.sin_addr.s_addr = inet_addr(argv[3]);
     memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
     // =========================================================
 
     if (pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
