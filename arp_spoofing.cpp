@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
     // =========================================================
 
     cout << "Target ip : " << eth_arp_hdr->__ar_tip;
-    addr.sin_addr.s_addr = inet_addr(argv[6]);
+    addr.sin_addr.s_addr = inet_addr(argv[3]);
     memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
 
 
