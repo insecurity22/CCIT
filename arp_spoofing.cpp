@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
     eth_arp_hdr = new ether_arp_hdr;
 
 
-    if (argc != 6) {
-        cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac";
+    if (argc != 7) {
+        cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac ip_network_address";
         return -1;
     }
 
@@ -85,7 +85,6 @@ int main(int argc, char *argv[])
 
     struct ifreq ifr;
     struct sockaddr_in *sin;
-    sockaddr_in addr;
 
     strncpy(ifr.ifr_ifrn.ifrn_name, dev, strlen(dev));
     if(ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
@@ -143,10 +142,75 @@ int main(int argc, char *argv[])
     // =========================================================
 
     if (pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
-        cout << "Error sending the packet" << endl;
+        cout << "Error packet" << endl;
         return -1;
     }
-    else cout << endl << endl << "Good" << endl;
+    else cout << endl << endl << "Reply Good" << endl;
 
+
+    // Reply --------------------------------------- End
+
+
+    cout << "Request Ethernet Destination : " << endl;
+    change_mac(argv[5], eth_arp_hdr->h_dest);
+
+    // -------------------
+
+    cout << "Request Ethernet Source : " << endl;
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(fd < 0) {
+        cout << "socket error" << endl;
+        return -1;
+    }
+
+    strncpy(ifr.ifr_ifrn.ifrn_name, dev, strlen(dev));
+    if(ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
+        cout << "Mac error" << endl;
+        return -1;
+    }
+
+    cout << "-- My Mac address : ";
+    for(int i=0; i<6; i++) {
+    cout << (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i] << " ";
+    eth_arp_hdr->h_source[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
+    }
+
+    // -------------
+
+    cout << endl << "Sender ip : " << endl;
+    addr.sin_addr.s_addr = inet_addr(argv[2]);
+    memcpy(&eth_arp_hdr->__ar_sip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
+    // --------------
+    eth_arp_hdr->ar_op = htons(0x0001);
+    cout << "ar_op : " << eth_arp_hdr->ar_op << endl << endl;
+
+    // --------------
+
+    cout << "Sender mac : ";
+    for(int i=0; i<6; i++) {
+    cout << (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i] << " ";
+    eth_arp_hdr->__ar_sha[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
+    }
+
+    cout << endl << "Target mac : " << endl;
+    memset(eth_arp_hdr->__ar_tha, 0, sizeof(eth_arp_hdr->__ar_tha));
+   // change_mac(uni, eth_arp_hdr->__ar_tha);
+
+    // =========================================================
+
+    cout << "Target ip : " << eth_arp_hdr->__ar_tip;
+    addr.sin_addr.s_addr = inet_addr(argv[6]);
+    memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
+
+
+    if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
+            cout << "Error packet" << endl;
+            return -1;
+    }
+    else cout << endl << endl << "Request Good" << endl;
 }
+
+
 
