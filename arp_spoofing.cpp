@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     eth_arp_hdr = new ether_arp_hdr;
 
 
-    if (argc != 7) {
+    if (argc != 8) {
         cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac ip_network_address";
         return -1;
     }
@@ -148,11 +148,18 @@ int main(int argc, char *argv[])
     else cout << endl << endl << "Reply Good" << endl;
 
 
+
+
+
+
+
+
+
     // Reply --------------------------------------- End
 
 
     cout << "Request Ethernet Destination : " << endl;
-    change_mac(argv[5], eth_arp_hdr->h_dest);
+    change_mac(argv[7], eth_arp_hdr->h_dest);
 
     // -------------------
 
@@ -177,11 +184,6 @@ int main(int argc, char *argv[])
 
     // -------------
 
-    cout << endl << "Sender ip : " << endl;
-    addr.sin_addr.s_addr = inet_addr(argv[2]);
-    memcpy(&eth_arp_hdr->__ar_sip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
-
-    // --------------
     eth_arp_hdr->ar_op = htons(0x0001);
     cout << "ar_op : " << eth_arp_hdr->ar_op << endl << endl;
 
@@ -193,14 +195,18 @@ int main(int argc, char *argv[])
     eth_arp_hdr->__ar_sha[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
     }
 
+    cout << endl << "Sender ip : " << endl;
+    addr.sin_addr.s_addr = inet_addr(argv[3]);
+    memcpy(&eth_arp_hdr->__ar_sip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
+
+
     cout << endl << "Target mac : " << endl;
     memset(eth_arp_hdr->__ar_tha, 0, sizeof(eth_arp_hdr->__ar_tha));
-   // change_mac(uni, eth_arp_hdr->__ar_tha);
+    change_mac(argv[7], eth_arp_hdr->__ar_tha);
 
-    // =========================================================
 
     cout << "Target ip : " << eth_arp_hdr->__ar_tip;
-    addr.sin_addr.s_addr = inet_addr(argv[3]);
+    addr.sin_addr.s_addr = inet_addr(argv[2]);
     memcpy(&eth_arp_hdr->__ar_tip, &addr.sin_addr.s_addr, sizeof(addr.sin_addr.s_addr));
 
 
@@ -210,7 +216,26 @@ int main(int argc, char *argv[])
             return -1;
     }
     else cout << endl << endl << "Request Good" << endl;
+
+
 }
 
 
+
+
+
+/*
+
+    FILE *fp;
+    char buff[1024];
+
+    fp = popen("ifconfig", "r");
+    if(fp == NULL) return -1;
+    while(fgets(buff, sizeof(buff), fp)) { printf("--%s", buff); }
+    pclose(fp);
+
+    regex rx("HWaddr ([^ ])*");
+    printf("%s", rx);
+
+ */
 
