@@ -15,6 +15,7 @@ public:
     explicit Widget(QWidget *parent = 0);
     ~Widget();
     int put_value(int i);
+    int cal_value(int i, int num);
     int reset();
 
 private slots:

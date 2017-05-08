@@ -26,6 +26,24 @@ int Widget::put_value(int i) {
 
 }
 
+int Widget::cal_value(int i, int num) {
+
+    QString s = ui->leMoney->text(); // save s from text value
+    int first = 0;
+    first = s.toInt(); // 0
+    first = first - i;
+
+    if(first < num) {
+        ui->leMoney->setEnabled(false);
+    }
+
+    else {
+        ui->leMoney->setEnabled(true);
+        s = s.setNum(first);
+        ui->leMoney->setText(s);
+    }
+}
+
 int Widget::reset() {
     QString s = ui->leMoney->text();
     int first = 0;
@@ -63,19 +81,21 @@ void Widget::on_pb50_clicked()
     Widget::put_value(50);
 }
 
+
+
 void Widget::on_pbCoffee_clicked()
 {
-    Widget::put_value(200);
+    Widget::cal_value(200, 0);
 }
 
 void Widget::on_pbTea_clicked()
 {
-    Widget::put_value(100);
+    Widget::cal_value(100, 0);
 }
 
 void Widget::on_pbYul_clicked()
 {
-    Widget::put_value(250);
+    Widget::cal_value(250, 0);
 }
 
 void Widget::on_pbReset_clicked()
