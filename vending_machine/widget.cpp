@@ -7,6 +7,11 @@ Widget::Widget(QWidget *parent) :
     ui(new Ui::Widget)
 {
     ui->setupUi(this);
+    ui->leMoney->setEnabled(false);
+    ui->pbCoffee->setEnabled(false);
+    ui->pbTea->setEnabled(false);
+    ui->pbYul->setEnabled(false);
+
 }
 
 Widget::~Widget()
@@ -14,88 +19,78 @@ Widget::~Widget()
     delete ui;
 }
 
-int Widget::put_value(int i) {
 
-    QString s = ui->leMoney->text(); // save s from text value
-    int first = 0;
-    first = s.toInt(); // 0
-    first = first + i;
+int Widget::put_value(int i, int num) {
 
-    s = s.setNum(first);
-    ui->leMoney->setText(s);
-
-}
-
-int Widget::cal_value(int i, int num) {
-
-    QString s = ui->leMoney->text(); // save s from text value
-    int first = 0;
-    first = s.toInt(); // 0
-    first = first - i;
-
-    if(first < num) {
-        ui->leMoney->setEnabled(false);
+    QString value;
+    if(num == 1) {
+        ui->leMoney->setText(value.setNum(ui->leMoney->text().toInt() + i));
     }
-
-    else {
-        ui->leMoney->setEnabled(true);
-        s = s.setNum(first);
-        ui->leMoney->setText(s);
+    else if(num == 2) {
+        if(ui->leMoney->text().toInt() > 0) {
+            ui->leMoney->setText(value.setNum(ui->leMoney->text().toInt() - i));
+        }
     }
+    if(ui->leMoney->text().toInt() >= 200) ui->pbCoffee->setEnabled(true);
+    else ui->pbCoffee->setEnabled(false);
+    if(ui->leMoney->text().toInt() >= 100) ui->pbTea->setEnabled(true);
+    else ui->pbTea->setEnabled(false);
+    if(ui->leMoney->text().toInt() >= 250) ui->pbYul->setEnabled(true);
+    else ui->pbYul->setEnabled(false);
+
 }
 
 int Widget::reset() {
-    QString s = ui->leMoney->text();
-    int first = 0;
-    first = s.toInt();
 
-    int five = 0, one = 0, fifty = 0;
+    QString value;
+    QString write = "Total : "; // if 750
+    write.append(ui->leMoney->text());
+    write.append("\n500 : ");
+    write.append(value.setNum(ui->leMoney->text().toInt() / 500)); // 750won = 500, 1
+    write.append("\n100 : ");
+    write.append(value.setNum((ui->leMoney->text().toInt() / 100) // 750won = 100, 2
+                 - (ui->leMoney->text().toInt() / 500)*5)); // but 7, because 7-5 = 2
+    write.append("\n50 : ");
+    write.append(value.setNum((ui->leMoney->text().toInt() % 100)/50));
 
-    five = first / 500; // 500
-    one = first / 100; // 100
-    fifty = first / 50; // 50
+    ui->leMoney->setText(0);
+    ui->pbCoffee->setEnabled(false);
+    ui->pbTea->setEnabled(false);
+    ui->pbYul->setEnabled(false);
 
     QMessageBox msgBox;
-    msgBox.setText(QString("500 : ").arg(five));
-    msgBox.setText(QString("100 : ").arg(one));
-    msgBox.setText(QString("50 : ").arg(fifty));
-}
-
-void Widget::on_leMoney_cursorPositionChanged(int arg1, int arg2)
-{
+    msgBox.information(this, "Total Value", write, "Exit");
 
 }
 
 int Widget::on_pb500_clicked()
 {
-    Widget::put_value(500);
+    Widget::put_value(500, 1);
 }
 
 int Widget::on_pb100_clicked()
 {
-    Widget::put_value(100);
+    Widget::put_value(100, 1);
 }
 
 void Widget::on_pb50_clicked()
 {
-    Widget::put_value(50);
+    Widget::put_value(50, 1);
 }
-
-
 
 void Widget::on_pbCoffee_clicked()
 {
-    Widget::cal_value(200, 0);
+    Widget::put_value(200, 2);
 }
 
 void Widget::on_pbTea_clicked()
 {
-    Widget::cal_value(100, 0);
+    Widget::put_value(100, 2);
 }
 
 void Widget::on_pbYul_clicked()
 {
-    Widget::cal_value(250, 0);
+    Widget::put_value(250, 2);
 }
 
 void Widget::on_pbReset_clicked()
@@ -104,4 +99,13 @@ void Widget::on_pbReset_clicked()
 
 }
 
+void Widget::on_leMoney_cursorPositionChanged(int arg1, int arg2)
+{
 
+}
+
+
+void Widget::on_lineEdit_cursorPositionChanged(int arg1, int arg2)
+{
+
+}
