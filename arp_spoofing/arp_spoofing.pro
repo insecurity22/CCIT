@@ -6,4 +6,3 @@ LIBS += -lpcap
 LIBS += -lpthread
 LIBS += -pthread
 SOURCES += main.cpp
-
