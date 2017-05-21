@@ -43,27 +43,6 @@ struct ether_arp_hdr {
 
 };
 
-struct ether_ip_hdr {
-
-    unsigned char   	h_dest[6];	/* destination eth addr	*/
-    unsigned char   	h_source[6];	/* source ether addr	*/
-    unsigned short      h_proto;		/* packet type ID field	*/
-
-    unsigned int ihl:4;
-    unsigned int version:4;
-
-    u_int8_t tos;
-    u_int16_t tot_len;
-    u_int16_t id;
-    u_int16_t frag_off;
-    u_int8_t ttl;
-    u_int8_t protocol;
-    u_int16_t check;
-    u_int32_t saddr;
-    u_int32_t daddr;
-
-};
-
 struct ifreq ifr;
 
 int get_my_mac(char *dev, char *packet) {
@@ -224,11 +203,11 @@ int ip_relay_packet(pcap_t *pcd, char *dev, char my_mac[6], char victim_mac[6], 
 
             // Recovery
             if(eth_arp_hdr->h_proto == htons(ETHERTYPE_ARP)) {
-               
+
                 // Gateway's broadcast, Victim's broadcast
                 if((memcmp(eth_arp_hdr->h_source, gateway_mac, 6)==0
                         && memcmp(eth_arp_hdr->__ar_sha, gateway_mac, 6)==0)
-                        
+
                         || (memcmp(eth_arp_hdr->h_source, victim_mac, 6)==0
                             && memcmp(eth_arp_hdr->__ar_sha, victim_mac, 6)==0)) {
 
