@@ -95,27 +95,26 @@ static u_int32_t print_pkt(struct nfq_data *tb)
             struct nfq_q_handle *qh;
             while(1) {
                 if(cnt == 60) break;
+                num = 0;
+                if(data[cnt] == 'H' && data[cnt+1] == 'o' && data[cnt+2] == 's' && data[cnt+3] == 't') {
 
-                if(data[cnt] == 'H' && data[cnt+1] == 'o' && data[cnt+2] == 's' && data[cnt+3] == 't'){
+                        i=0;
 
-                    num = 0;
-                    i=0;
 
                         while(1) {
                               printf("%c", data[cnt+i]);
 
 
-                              if(data[cnt+i] == 'g' && data[cnt+i+1] == 'i' && data[cnt+i+2] == 'l' && data[cnt+i+3] == 'g'
-                                                     && data[cnt +i+4] == 'i' && data[cnt +i+5] == 'l') { // naver block
+                              if(data[cnt+i] == 'g' && data[cnt+i+1] == 'i' && data[cnt+i+2] == 'l'
+                                      && data[cnt+i+3] == 'g' && data[cnt +i+4] == 'i' && data[cnt +i+5] == 'l') { // naver block
                                                  num = 1;
-                                                 if(data[cnt+i] == 0x0d && data[cnt+i+1] == 0x0a) break;
                                              }
                               if(data[cnt+i] == 0x0d && data[cnt+i+1] == 0x0a) break;
-                               i++;
+                              i++;
                         }
-                        else continue;
                         break;
                 }
+                if(num == 1) break;
                 cnt++;
 
                 // ? after send packet, connection... ?
@@ -187,7 +186,7 @@ int main(int argc, char **argv)
     while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
         printf("pkt received\n");
         nfq_handle_packet(h, buf, rv); // Processing received packet
-        cout<<endl<<num<<endl;
+        cout << endl << num << endl;
     }
 
     printf("Unbinding from queue 0\n");
