@@ -14,6 +14,7 @@
 using namespace std;
 
 int num;
+char *block_address;
 
 static u_int32_t print_pkt(struct nfq_data *tb)
 {
@@ -90,24 +91,24 @@ static u_int32_t print_pkt(struct nfq_data *tb)
 
 
             cnt = 0;
-            int i = 0;
+            int i = 0, j = 5, k = 0;
             printf("<TCP data>\n");
-            struct nfq_q_handle *qh;
             while(1) {
                 if(cnt == 60) break;
                 num = 0;
                 if(data[cnt] == 'H' && data[cnt+1] == 'o' && data[cnt+2] == 's' && data[cnt+3] == 't') {
 
-                        i=0;
-
+                        i=0, k=0;
+                        j=6; // host: start
 
                         while(1) {
                               printf("%c", data[cnt+i]);
 
+                              if(data[cnt+j] == block_address[k]) {
 
-                              if(data[cnt+i] == 'g' && data[cnt+i+1] == 'i' && data[cnt+i+2] == 'l'
-                                      && data[cnt+i+3] == 'g' && data[cnt +i+4] == 'i' && data[cnt +i+5] == 'l') { // naver block
-                                                 num = 1;
+                                      num = 1;
+                                      j++;
+                                      k++;
                                              }
                               if(data[cnt+i] == 0x0d && data[cnt+i+1] == 0x0a) break;
                               i++;
@@ -116,8 +117,6 @@ static u_int32_t print_pkt(struct nfq_data *tb)
                 }
                 if(num == 1) break;
                 cnt++;
-
-                // ? after send packet, connection... ?
             }
 
         }
@@ -148,6 +147,8 @@ int main(int argc, char **argv)
     int fd;
     int rv;
     char buf[4096] __attribute__((aligned));
+
+    block_address = argv[1];
 
     printf("opening library handle\n");
     h = nfq_open(); // open nfqueue handler, get netfilter handle
