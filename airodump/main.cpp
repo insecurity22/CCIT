@@ -47,19 +47,36 @@ struct ieee80211_radiotap_header {
     u_int16_t rx_flags;
     u_int8_t ssi_signal2;
     u_int8_t antenna;
-
 };
 
-struct ieee80211_hdr {
-};
 
 struct ieee80211_beacon_frame {
-    uint16_t i_fc;
+
+    uint8_t i_type;
+    uint8_t fcf; // type+fcf = fcf
     uint16_t i_dur;
     uint8_t i_receiver_addr[IEEE80211_ADDR_LEN];
     uint8_t i_transmitter_addr[IEEE80211_ADDR_LEN];
     uint8_t i_bssid[IEEE80211_ADDR_LEN];
     uint8_t i_seq[2];
+
+    // ieee80211_wireless_LAN
+    int64_t timestamp;
+    u_int16_t beacon_interval;
+    u_int16_t capabilities;
+    u_int8_t ssid_number;
+    u_int8_t ssid_length;
+    u_int8_t ssid[30]; // change
+};
+
+struct ieee80211_wireless_LAN2 {
+    u_int8_t rates_number;
+    int64_t supported_rates;
+    u_int8_t ds_number;
+    u_int8_t ds_length;
+    u_int8_t channel;
+    int64_t traffic;
+    int64_t country;
 };
 
 int main(int argc, char *argv[])
@@ -73,6 +90,7 @@ int main(int argc, char *argv[])
     int res;
 
     int i=0;
+    int beacon_frame_count = 0;
     struct ieee80211_radiotap_header *radiotaphdr; // Radiotap Header
     struct ieee80211_beacon_frame *framehdr; // 802.11 Beacon frame
     struct pcap_pkthdr *pheader;
@@ -98,20 +116,43 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        //cout << " BSSID\t\tPWR  Beacons\t#Data, #/s  CH  MB  ENC  CIPHER AUTH ESSID" << endl;
+        cout << " BSSID\t\t\tPWR  Beacons\t#Data, #/s  CH  MB  ENC  CIPHER AUTH ESSID" << endl << " ";
 
         radiotaphdr = (struct ieee80211_radiotap_header *)packet;
         packet += radiotaphdr->it_len;
         framehdr = (struct ieee80211_beacon_frame *)packet;
 
-
-        for(int i=0; i<2; i++) {
-            cout << hex << (int)framehdr->i_transmitter_addr[i]<<endl;
-            if(i!=11) cout << ":";
-            i++;
+        // BSSID
+        for(int i=0; i<6; i++) {
+            cout << hex << (int)framehdr->i_transmitter_addr[i];
+            if(i!=5) cout << ":";
         }
 
-        cout << endl;
+        // PWR : be close signal
+        cout << "\t-" << dec << 256-(int)radiotaphdr->ssi_signal << "  ";;
+
+        // Beacons
+        if(framehdr->i_type == 0x0080) {
+            beacon_frame_count += 1;
+            cout << dec << beacon_frame_count << "\t\t";;
+        }
+        else { cout << dec << beacon_frame_count << "\t\t"; };
+
+        // #Data
+        //  cout << (int)radiotaphdr->data_rate << "\t";
+
+        // CH
+        
+        // cout << hex << (int)framehdr->i_type;
+        
+        // ESSID
+        if(framehdr->i_type == 0x0080) {
+             for(int i=0; i<framehdr->ssid_length; i++) {
+               cout << framehdr->ssid[i];
+             }
+        }
+        
+        cout << endl << endl << endl;
 
     }
 
