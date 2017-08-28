@@ -23,7 +23,11 @@ using namespace std;
 
 #define IEEE80211_ADDR_LEN 6
 
-void PrintTime(struct tm *curr_tm) {
+void PrintTime() {
+    struct tm *curr_tm; // show time to struct
+    time_t curr_time;
+    curr_time = time(NULL);
+    curr_tm = localtime(&curr_time); // standard local time
 
     cout << "[ " << curr_tm->tm_year + 1900 << "-" <<
             curr_tm->tm_mon + 1 << "-" <<
@@ -79,20 +83,17 @@ struct ieee80211_wireless_LAN2 {
     int64_t country;
 };
 
-int main(int argc, char *argv[])
-{
-    time_t curr_time;
-    struct tm *curr_tm; // show time to struct
-
+int main(int argc, char *argv[]) {
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *pcd; // packet capture descriptor
     int res;
 
     int i=0;
-    int beacon_frame_count = 0;
+    int beacon_frame_count = 0, data_count = 0;
     struct ieee80211_radiotap_header *radiotaphdr; // Radiotap Header
     struct ieee80211_beacon_frame *framehdr; // 802.11 Beacon frame
+    struct ieee80211_wireless_LAN2 *wirelesshdr;
     struct pcap_pkthdr *pheader;
     const unsigned char *packet;
 
@@ -107,6 +108,8 @@ int main(int argc, char *argv[])
         cout << "Device " << dev << "can't open : " << errbuf;
         return -1;
     }
+    
+    PrintTime();
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
@@ -139,19 +142,25 @@ int main(int argc, char *argv[])
         else { cout << dec << beacon_frame_count << "\t\t"; };
 
         // #Data
-        //  cout << (int)radiotaphdr->data_rate << "\t";
+        if(framehdr->i_type == 0x0020) {
+            data_count += 1;
+            cout << dec << data_count << "\t\t";;
+        }
+
+        // cout << (int)radiotaphdr->data_rate << "\t";
 
         // CH
-        
+        cout << framehdr->
+
         // cout << hex << (int)framehdr->i_type;
-        
+
         // ESSID
         if(framehdr->i_type == 0x0080) {
              for(int i=0; i<framehdr->ssid_length; i++) {
                cout << framehdr->ssid[i];
              }
         }
-        
+
         cout << endl << endl << endl;
 
     }
