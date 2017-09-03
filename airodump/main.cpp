@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <pcap.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -18,6 +19,7 @@
 #include <pthread.h>
 #include <termios.h>
 #include <time.h>
+#include "info.h"
 
 using namespace std;
 
@@ -73,14 +75,20 @@ struct ieee80211_beacon_frame {
     u_int8_t ssid[30]; // change
 };
 
+struct save_info {
+      u_int8_t bssid[6];
+      u_int8_t ssi_signal;
+      int beacon_count;
+      int data_count;
+};
+
 struct ieee80211_wireless_LAN2 {
-    u_int8_t rates_number;
-    int64_t supported_rates;
+    u_int8_t tag_number;
+    u_int8_t tag_length;
+    u_int8_t supported_rates[8];
     u_int8_t ds_number;
     u_int8_t ds_length;
     u_int8_t channel;
-    int64_t traffic;
-    int64_t country;
 };
 
 int main(int argc, char *argv[]) {
@@ -96,6 +104,7 @@ int main(int argc, char *argv[]) {
     struct ieee80211_wireless_LAN2 *wirelesshdr;
     struct pcap_pkthdr *pheader;
     const unsigned char *packet;
+    struct save_info *si;
 
     if(argc != 2) {
         cout << "usage : " << argv[0] << " interface_name" << endl;
@@ -108,7 +117,7 @@ int main(int argc, char *argv[]) {
         cout << "Device " << dev << "can't open : " << errbuf;
         return -1;
     }
-    
+
     PrintTime();
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
@@ -127,7 +136,7 @@ int main(int argc, char *argv[]) {
 
         // BSSID
         for(int i=0; i<6; i++) {
-            cout << hex << (int)framehdr->i_transmitter_addr[i];
+            cout << setfill('0') << setw(2) << hex << (int)framehdr->i_transmitter_addr[i];
             if(i!=5) cout << ":";
         }
 
@@ -137,24 +146,40 @@ int main(int argc, char *argv[]) {
         // Beacons
         if(framehdr->i_type == 0x0080) {
             beacon_frame_count += 1;
-            cout << dec << beacon_frame_count << "\t\t";;
+            cout << dec << beacon_frame_count << "\t\t";
         }
         else { cout << dec << beacon_frame_count << "\t\t"; };
 
         // #Data
         if(framehdr->i_type == 0x0020) {
             data_count += 1;
-            cout << dec << data_count << "\t\t";;
+            cout << data_count << "\t";
         }
+        else { cout << data_count << "\t";}
 
-        // cout << (int)radiotaphdr->data_rate << "\t";
+        // #/s
+        cout << "    ";
+
+        wirelesshdr = (struct ieee80211_wireless_LAN2 *)packet + sizeof(struct ieee80211_beacon_frame *)
+                - sizeof(framehdr->ssid) + framehdr->ssid_length;
+      //  packet += + ;
 
         // CH
-        cout << framehdr->
+        if(framehdr->i_type == 0x0080) {
+            cout << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_number
+                 << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_length <<
+                   setfill('0') << setw(2) << hex <<  (int)wirelesshdr->supported_rates[0] <<
+                     setfill('0') << setw(2) << hex << (int)wirelesshdr->supported_rates[1] <<
+                     setfill('0') << setw(2) << hex << (int)wirelesshdr->supported_rates[2] <<
+                        setfill('0') << setw(2) << (int)wirelesshdr->supported_rates[3] <<"\t";;
+        }
+        else { }
+
 
         // cout << hex << (int)framehdr->i_type;
 
         // ESSID
+
         if(framehdr->i_type == 0x0080) {
              for(int i=0; i<framehdr->ssid_length; i++) {
                cout << framehdr->ssid[i];
