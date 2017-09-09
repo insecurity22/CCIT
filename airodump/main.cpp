@@ -1,6 +1,5 @@
 #include <iostream>
 #include <iomanip>
-#include <pcap.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -19,13 +18,14 @@
 #include <pthread.h>
 #include <termios.h>
 #include <time.h>
-#include "info.h"
+#include <pcap.h>
+#include <map>
 
 using namespace std;
 
 #define IEEE80211_ADDR_LEN 6
 
-void PrintTime() {
+void printTime() {
     struct tm *curr_tm; // show time to struct
     time_t curr_time;
     curr_time = time(NULL);
@@ -37,6 +37,10 @@ void PrintTime() {
 
     cout << " " << curr_tm->tm_hour + 4 << ":" <<
             curr_tm->tm_min << endl;
+}
+
+void printBssid() {
+
 }
 
 struct ieee80211_radiotap_header {
@@ -75,6 +79,18 @@ struct ieee80211_beacon_frame {
     u_int8_t ssid[30]; // change
 };
 
+int cmpMax(map<int, int>::iterator iter, char addr[]) {
+
+    int cmpsame;
+
+    for(int i=0; i<6; i++) {
+        if((int)iter->second == (int)addr[i]) cmpsame = 1;
+        else cmpsame = 2;
+    }
+
+    return cmpsame;
+}
+
 struct save_info {
       u_int8_t bssid[6];
       u_int8_t ssi_signal;
@@ -92,12 +108,12 @@ struct ieee80211_wireless_LAN2 {
 };
 
 int main(int argc, char *argv[]) {
+
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *pcd; // packet capture descriptor
-    int res;
+    int res, same = 0;
 
-    int i=0;
     int beacon_frame_count = 0, data_count = 0;
     struct ieee80211_radiotap_header *radiotaphdr; // Radiotap Header
     struct ieee80211_beacon_frame *framehdr; // 802.11 Beacon frame
@@ -118,7 +134,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    PrintTime();
+    printTime();
+
+    map<int, int> bssid;
+    map<int, int>::iterator iter;
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
@@ -135,10 +154,22 @@ int main(int argc, char *argv[]) {
         framehdr = (struct ieee80211_beacon_frame *)packet;
 
         // BSSID
-        for(int i=0; i<6; i++) {
-            cout << setfill('0') << setw(2) << hex << (int)framehdr->i_transmitter_addr[i];
-            if(i!=5) cout << ":";
+        if(bssid.empty()) {
+            for(int i=0; i<6; i++) {
+                bssid.insert(map<int, int>::value_type(i, (int)framehdr->i_transmitter_addr[i]));
+            }
+
+            for(int i=0; i<6; i++) {
+                iter = bssid.find(i);
+                cout << setfill('0') << setw(2) << hex << (int)iter->second;
+                if(i!=5) cout << ":";
+            }
         }
+        else {
+            same = cmpMax(iter, framehdr->i_transmitter_addr);
+            cout << same << endl;
+        }
+
 
         // PWR : be close signal
         cout << "\t-" << dec << 256-(int)radiotaphdr->ssi_signal << "  ";;
