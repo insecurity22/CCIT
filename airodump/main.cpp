@@ -25,6 +25,8 @@ using namespace std;
 
 #define IEEE80211_ADDR_LEN 6
 
+int six = 6;
+
 void printTime() {
     struct tm *curr_tm; // show time to struct
     time_t curr_time;
@@ -41,6 +43,39 @@ void printTime() {
 
 void printBssid() {
 
+}
+
+int cmpMax(map<int, int> bssid, map<int, int>::iterator iter, struct ieee80211_beacon_frame *framehdr, int num) {
+
+    int cmpsame, addr = 0;
+    // The max is same = 1
+    // The max isn't same = 2
+
+    for(int i=num; i<num+6; i++) {
+        iter = bssid.find(i); // 0 - 6
+        // compare original value and current value
+        if((int)iter->second == (int)framehdr->i_transmitter_addr[addr]) cmpsame = 1;
+        else cmpsame = 2;
+        addr++;
+    }
+
+    return cmpsame;
+}
+
+void saveBssid(map<int, int> bssid, map<int, int>::iterator iter, struct ieee80211_beacon_frame *framehdr, int num) {
+
+    int addr = 0;
+
+    for(int i=num; i<num+6; i++) {
+        bssid.insert(map<int, int>::value_type(i, (int)framehdr->i_transmitter_addr[addr]));
+        addr++;
+    }
+
+    for(int i=num; i<num+6; i++) {
+        iter = bssid.find(i);
+        cout << setfill('0') << setw(2) << hex << (int)iter->second;
+        if(i!=(num-1)) cout << ":";
+    }
 }
 
 struct ieee80211_radiotap_header {
@@ -79,18 +114,6 @@ struct ieee80211_beacon_frame {
     u_int8_t ssid[30]; // change
 };
 
-int cmpMax(map<int, int>::iterator iter, char addr[]) {
-
-    int cmpsame;
-
-    for(int i=0; i<6; i++) {
-        if((int)iter->second == (int)addr[i]) cmpsame = 1;
-        else cmpsame = 2;
-    }
-
-    return cmpsame;
-}
-
 struct save_info {
       u_int8_t bssid[6];
       u_int8_t ssi_signal;
@@ -112,8 +135,7 @@ int main(int argc, char *argv[]) {
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *pcd; // packet capture descriptor
-    int res, same = 0;
-
+    int res, same;
     int beacon_frame_count = 0, data_count = 0;
     struct ieee80211_radiotap_header *radiotaphdr; // Radiotap Header
     struct ieee80211_beacon_frame *framehdr; // 802.11 Beacon frame
@@ -155,19 +177,53 @@ int main(int argc, char *argv[]) {
 
         // BSSID
         if(bssid.empty()) {
-            for(int i=0; i<6; i++) {
-                bssid.insert(map<int, int>::value_type(i, (int)framehdr->i_transmitter_addr[i]));
-            }
-
-            for(int i=0; i<6; i++) {
-                iter = bssid.find(i);
-                cout << setfill('0') << setw(2) << hex << (int)iter->second;
-                if(i!=5) cout << ":";
-            }
+            saveBssid(bssid, iter, framehdr, 0); // 0 - 6, save original
+            saveBssid(bssid, iter, framehdr, 6); // 6 - 12
         }
         else {
-            same = cmpMax(iter, framehdr->i_transmitter_addr);
-            cout << same << endl;
+            int addr = 0;
+            same = cmpMax(bssid, iter, framehdr, 0);
+            if(same == 1) { // same
+                for(int i=0; i<6; i++) {
+                    iter = bssid.find(i);
+                    cout << setfill('0') << setw(2) << hex << (int)iter->second;
+                    if(i!=5) cout << ":";
+                }
+            }
+            else if(same == 2) { // not same
+
+                for(int i=0; i<6; i++) { // 1
+                    iter = bssid.find(i);
+                    cout << setfill('0') << setw(2) << hex << (int)iter->second;
+                    if(i!=5) cout << ":";
+                }
+                cout << endl << " ";
+
+                addr = 0;
+                for(int i=6; i<12; i++) { // 2
+                    bssid.insert(map<int, int>::value_type(i, (int)framehdr->i_transmitter_addr[addr]));
+                    addr++;
+                }
+                for(int i=6; i<12; i++) {
+                    iter = bssid.find(i);
+                    cout << setfill('0') << setw(2) << hex << (int)iter->second;
+                    if(i!=11) cout << ":";
+                }
+
+                if(cmpMax(bssid, iter, framehdr, 0) != cmpMax(bssid, iter, framehdr, six)) {
+                    cout << endl << " ";
+                    for(int i=12; i<18; i++) { // 3
+                        bssid.insert(map<int, int>::value_type(i, (int)framehdr->i_transmitter_addr[addr]));
+                        addr++;
+                    }
+                    for(int i=12; i<18; i++) {
+                        iter = bssid.find(i);
+                        cout << setfill('0') << setw(2) << hex << (int)iter->second;
+                        if(i!=17) cout << ":";
+                    }
+                    six += 6;
+                }
+            }
         }
 
 
