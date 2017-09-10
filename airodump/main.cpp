@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
             first = 1;
         }
         else {
-            int cmp = 0;
+            int cmp = 0, cmp1 = 0, cmp2 = 0;
             six += 6;
             for(int i=0; i<inc; i++) {
                 // compare 0 - 6 and current max
@@ -204,12 +204,14 @@ int main(int argc, char *argv[]) {
             if(same == 1) { // same, only print
                 six -= 6;
                 for(int i=0; i<inc; i++) {
-                    onlyPrint(bssid, iter, six); // original
+                    onlyPrint(bssid, iter, cmp1); // original
+                    cmp1 += 6;
                 }
             }
             else if(same == 2) { // not same
                 for(int i=0; i<inc; i++) {
-                    onlyPrint(bssid, iter, six); // original
+                    onlyPrint(bssid, iter, cmp1); // original
+                    cmp2 += 6;
                 }
                 for(int i=0; i<1; i++) {
                     saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
