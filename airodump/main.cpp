@@ -45,14 +45,14 @@ void printBssid() {
 
 }
 
-int cmpMax(map<int, int> bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num) {
+int cmpMax(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num) {
 
     int cmpsame, addr = 0;
     // The max is same = 1
     // The max isn't same = 2
 
     for(int i=num; i<num+6; i++) {
-        iter = bssid.find(i);
+        iter = (*bssid).find(i);
         // 0 - 6
         // compare original value and current value
         if((int)iter->second == (int)transmitter_addr[addr]) cmpsame = 1;
@@ -80,10 +80,10 @@ void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *tran
     cout << endl << " ";
 }
 
-void onlyPrint(map<int, int> bssid, map<int, int>::iterator iter, int num) {
+void onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
 
     for(int i=num; i<num+6; i++) {
-        iter = bssid.find(i);
+        iter = (*bssid).find(i);
         cout << setfill('0') << setw(2) << hex << (int)iter->second;
         if(i!=(num-1+6)) cout << ":";
     }
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
 
     printTime();
 
-    map<int, int>* bssid;
+    map<int, int>* bssid = new map<int, int>();
     map<int, int>::iterator iter;
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
