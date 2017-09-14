@@ -188,34 +188,29 @@ int main(int argc, char *argv[]) {
         framehdr = (struct ieee80211_beacon_frame *)packet;
 
         // BSSID
-        if(first == 0) {
+        if(first == 0) { // It only starts first
             saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0); // 0 - 6, save original
             first = 1;
         }
         else {
             int cmp = 0, cmp1 = 0, cmp2 = 0;
-            six += 6;
             for(int i=0; i<inc; i++) {
-                // compare 0 - 6 and current max
+                // compare saved 0 - 6 max and current max
                 same = cmpMax(bssid, iter, framehdr->i_transmitter_addr, cmp);
                 cmp += 6;
                 if(same == 1) break;
             }
-            if(same == 1) { // same, only print
-                six -= 6;
+            if(same == 1) { // If it same, only print
                 for(int i=0; i<inc; i++) {
                     onlyPrint(bssid, iter, cmp1); // original
                     cmp1 += 6;
                 }
             }
             else if(same == 2) { // not same
-                for(int i=0; i<inc; i++) {
-                    onlyPrint(bssid, iter, cmp1); // original
-                    cmp2 += 6;
-                }
                 for(int i=0; i<1; i++) {
                     saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
                 }
+                six += 6;
                 inc += 1;
             }
         }
@@ -274,3 +269,4 @@ int main(int argc, char *argv[]) {
     cout << endl;
     return 0;
 }
+
