@@ -64,7 +64,7 @@ int cmpMax(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmit
 }
 
 void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num) {
-
+    // have to use swap function
     int addr = 0;
 
     for(int i=num; i<num+6; i++) {
@@ -77,7 +77,7 @@ void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *tran
         cout << setfill('0') << setw(2) << hex << (int)iter->second;
         if(i!=(num-1+6)) cout << ":";
     }
-    cout << endl << " ";
+    cout << "\t";
 }
 
 void onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
@@ -85,9 +85,17 @@ void onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
     for(int i=num; i<num+6; i++) {
         iter = (*bssid).find(i);
         cout << setfill('0') << setw(2) << hex << (int)iter->second;
-        if(i!=(num-1+6)) cout << ":";
     }
-    cout << endl << " ";
+    cout << "\t";
+}
+
+void getpwr(map<int, int>* pwr, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
+
+    (*pwr).insert(map<int, int>::value_type(num, (int)pwrpacket));
+
+    iter = (*pwr).find(num);
+    cout << hex << (int)iter->second << "\t";
+
 }
 
 struct ieee80211_radiotap_header {
@@ -173,6 +181,9 @@ int main(int argc, char *argv[]) {
     map<int, int>* bssid = new map<int, int>();
     map<int, int>::iterator iter;
 
+    map<int, int>* pwr = new map<int, int>();
+
+
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
         if(res == 0) continue;
@@ -187,37 +198,48 @@ int main(int argc, char *argv[]) {
         packet += radiotaphdr->it_len;
         framehdr = (struct ieee80211_beacon_frame *)packet;
 
+        int totalpacket = 0;
+
         // BSSID
-        if(first == 0) { // It only starts first
+        if(first == 0) {
+            // It only starts first
             saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0); // 0 - 6, save original
+            getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
             first = 1;
         }
         else {
-            int cmp = 0, cmp1 = 0, cmp2 = 0;
+            int cmp = 0, cmp1 = 0;
             for(int i=0; i<inc; i++) {
                 // compare saved 0 - 6 max and current max
                 same = cmpMax(bssid, iter, framehdr->i_transmitter_addr, cmp);
                 cmp += 6;
                 if(same == 1) break;
             }
-            if(same == 1) { // If it same, only print
+            if(same == 1) {
+                // If it same, only print
                 for(int i=0; i<inc; i++) {
                     onlyPrint(bssid, iter, cmp1); // original
+                    getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
                     cmp1 += 6;
                 }
             }
-            else if(same == 2) { // not same
+            else if(same == 2) {
+                // not same
                 for(int i=0; i<1; i++) {
                     saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
+                    getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
+
                 }
                 six += 6;
+                // If the mac address added,  the inc increase one.
                 inc += 1;
             }
+
         }
 
-
+        totalpacket += 1;
         // PWR : be close signal
-        cout << "\t-" << dec << 256-(int)radiotaphdr->ssi_signal << "  ";;
+        cout << "\t-" << dec << 256-(int)radiotaphdr->ssi_signal << "  ";
 
         // Beacons
         if(framehdr->i_type == 0x0080) {
@@ -252,6 +274,7 @@ int main(int argc, char *argv[]) {
         else { }
 
 
+        cout << endl;
         // cout << hex << (int)framehdr->i_type;
 
         // ESSID
