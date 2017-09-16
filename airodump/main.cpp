@@ -67,6 +67,7 @@ void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *tran
     // have to use swap function
     int addr = 0;
 
+    cout << " ";
     for(int i=num; i<num+6; i++) {
         (*bssid).insert(map<int, int>::value_type(i, (int)transmitter_addr[addr]));
         addr++;
@@ -80,21 +81,80 @@ void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *tran
     cout << "\t";
 }
 
-void onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
+int onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
 
+    cout << " ";
     for(int i=num; i<num+6; i++) {
         iter = (*bssid).find(i);
         cout << setfill('0') << setw(2) << hex << (int)iter->second;
+        if(i!=(num-1+6)) cout << ":";
     }
     cout << "\t";
+
+    return num;
 }
 
 void getpwr(map<int, int>* pwr, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
 
     (*pwr).insert(map<int, int>::value_type(num, (int)pwrpacket));
-
     iter = (*pwr).find(num);
-    cout << hex << (int)iter->second << "\t";
+
+    cout << "-" << dec << 256-(int)iter->second << "\t";
+
+}
+
+int checkmaclocation(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int cmp1) {
+
+    int value = 0, addr = 0, save = 0;
+    if(cmp1==0) {
+        for(int i=0; i<6; i++) {
+            iter = (*bssid).find(i);
+            if((int)iter->second == (int)transmitter_addr[addr]) {
+                if(cmp1%6==0) save = cmp1;
+                value = save;
+                addr++;
+            }
+        }
+    }
+    else {
+        for(int i=cmp1; i<cmp1+6; i++) {
+            iter = (*bssid).find(i);
+            if((int)iter->second == (int)transmitter_addr[addr]) {
+                if(cmp1%6==0) save = cmp1;
+                value = save;
+                addr++;
+            }
+        }
+    }
+
+    return value;
+}
+
+
+void getbeacons(uint8_t type, int beacon_frame_count, map<int, int>* Qospacket, map<int, int>::iterator iter, int num) {
+    // When I get Qos packet
+    // If there is same mac, the beacon_frame_count increase in the map
+
+    iter = (*Qospacket).find(num);
+    if(type == 0x0080) {
+        beacon_frame_count += 1;
+        (*Qospacket).insert(map<int, int>::value_type(num, beacon_frame_count));
+
+        cout << dec << (int)iter->second << "\t\t";
+    }
+    else {
+        cout << dec << (int)iter->second << "\t\t";
+    };
+
+}
+
+void findmacnum(map<int, int>* mac, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
+    iter = (*mac).find(num/6);
+
+    for(int i=0; i<num; i++) {
+
+    }
+
 
 }
 
@@ -155,7 +215,7 @@ int main(int argc, char *argv[]) {
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *pcd; // packet capture descriptor
-    int res, same;
+    int res, same, totalpacket, maclocation = 0; // totalpacket : for print exclude bssid
     int beacon_frame_count = 0, data_count = 0;
     struct ieee80211_radiotap_header *radiotaphdr; // Radiotap Header
     struct ieee80211_beacon_frame *framehdr; // 802.11 Beacon frame
@@ -183,6 +243,9 @@ int main(int argc, char *argv[]) {
 
     map<int, int>* pwr = new map<int, int>();
 
+    map<int, int>* Qospacket = new map<int, int>();
+
+
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
@@ -192,19 +255,18 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        cout << " BSSID\t\t\tPWR  Beacons\t#Data, #/s  CH  MB  ENC  CIPHER AUTH ESSID" << endl << " ";
+        cout << " BSSID\t\t\tPWR\tBeacons\t#Data\tCH  MB  ENC  CIPHER AUTH ESSID" << endl;
 
         radiotaphdr = (struct ieee80211_radiotap_header *)packet;
         packet += radiotaphdr->it_len;
         framehdr = (struct ieee80211_beacon_frame *)packet;
 
-        int totalpacket = 0;
-
         // BSSID
         if(first == 0) {
             // It only starts first
             saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0); // 0 - 6, save original
-            getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
+            getpwr(pwr, iter, radiotaphdr->ssi_signal, 0);
+            getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
             first = 1;
         }
         else {
@@ -213,13 +275,20 @@ int main(int argc, char *argv[]) {
                 // compare saved 0 - 6 max and current max
                 same = cmpMax(bssid, iter, framehdr->i_transmitter_addr, cmp);
                 cmp += 6;
+
+
                 if(same == 1) break;
             }
             if(same == 1) {
                 // If it same, only print
                 for(int i=0; i<inc; i++) {
-                    onlyPrint(bssid, iter, cmp1); // original
-                    getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
+                    onlyPrint(bssid, iter, cmp1); // print original mac
+
+                    maclocation = checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, cmp1);
+                    getpwr(pwr, iter, radiotaphdr->ssi_signal, maclocation);
+
+                    getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
+
                     cmp1 += 6;
                 }
             }
@@ -227,26 +296,18 @@ int main(int argc, char *argv[]) {
                 // not same
                 for(int i=0; i<1; i++) {
                     saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
-                    getpwr(pwr, iter, radiotaphdr->ssi_signal, totalpacket);
 
+                    maclocation = checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, six+6);
+                    getpwr(pwr, iter, radiotaphdr->ssi_signal, maclocation);
+
+                    getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
                 }
                 six += 6;
                 // If the mac address added,  the inc increase one.
                 inc += 1;
             }
-
         }
-
         totalpacket += 1;
-        // PWR : be close signal
-        cout << "\t-" << dec << 256-(int)radiotaphdr->ssi_signal << "  ";
-
-        // Beacons
-        if(framehdr->i_type == 0x0080) {
-            beacon_frame_count += 1;
-            cout << dec << beacon_frame_count << "\t\t";
-        }
-        else { cout << dec << beacon_frame_count << "\t\t"; };
 
         // #Data
         if(framehdr->i_type == 0x0020) {
@@ -255,8 +316,6 @@ int main(int argc, char *argv[]) {
         }
         else { cout << data_count << "\t";}
 
-        // #/s
-        cout << "    ";
 
         wirelesshdr = (struct ieee80211_wireless_LAN2 *)packet + sizeof(struct ieee80211_beacon_frame *)
                 - sizeof(framehdr->ssid) + framehdr->ssid_length;
@@ -266,11 +325,8 @@ int main(int argc, char *argv[]) {
         if(framehdr->i_type == 0x0080) {
             cout << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_number
                  << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_length <<
-                   setfill('0') << setw(2) << hex <<  (int)wirelesshdr->supported_rates[0] <<
-                     setfill('0') << setw(2) << hex << (int)wirelesshdr->supported_rates[1] <<
-                     setfill('0') << setw(2) << hex << (int)wirelesshdr->supported_rates[2] <<
-                        setfill('0') << setw(2) << (int)wirelesshdr->supported_rates[3] <<"\t";;
-        }
+                   setfill('0') << setw(2) << hex <<  (int)wirelesshdr->supported_rates[0];
+    }
         else { }
 
 
