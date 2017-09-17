@@ -63,24 +63,6 @@ int cmpMax(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmit
     return cmpsame;
 }
 
-void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num) {
-    // have to use swap function
-    int addr = 0;
-
-    cout << " ";
-    for(int i=num; i<num+6; i++) {
-        (*bssid).insert(map<int, int>::value_type(i, (int)transmitter_addr[addr]));
-        addr++;
-    }
-
-    for(int i=num; i<num+6; i++) {
-        iter = (*bssid).find(i);
-        cout << setfill('0') << setw(2) << hex << (int)iter->second;
-        if(i!=(num-1+6)) cout << ":";
-    }
-    cout << "\t";
-}
-
 void getpwr(map<int, int>* pwr, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
 
     (*pwr).insert(map<int, int>::value_type(num, (int)pwrpacket));
@@ -133,10 +115,19 @@ int onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num,
     cout << "\t";
 
     checkmaclocation(bssid, iter, bssidpacket, num, pwr, pwrpacket);
-
-    return printpwr;
 }
 
+void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num,
+               map<int, int>* pwr, u_int8_t pwrpacket) {
+    // have to use swap function
+    int addr = 0, pwrcount = 0, count = 1;
+
+    cout << " ";
+    for(int i=num; i<num+6; i++) {
+        (*bssid).insert(map<int, int>::value_type(i, (int)transmitter_addr[addr]));
+        addr++;
+    }
+}
 
 void getbeacons(uint8_t type, int beacon_frame_count, map<int, int>* Qospacket, map<int, int>::iterator iter, int num) {
     // When I get Qos packet
@@ -271,17 +262,14 @@ int main(int argc, char *argv[]) {
         // BSSID
         if(first == 0) {
             // It only starts first
-            saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0); // 0 - 6, save original
-
-            getpwr(pwr, iter, radiotaphdr->ssi_signal, 0);
-            iter = (*pwr).find(0);
-            cout << "-" << dec << 256-(int)iter->second << "\t";
+            saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0, pwr, radiotaphdr->ssi_signal); // 0 - 6, save original
+            onlyPrint(bssid, iter, 0, pwr, framehdr->i_transmitter_addr, radiotaphdr->ssi_signal);
 
             getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
             first = 1;
         }
         else {
-            int cmp = 0, cmp1 = 0;
+            int cmp = 0, cmp1 = 0, cmp2 = 0;
             for(int i=0; i<inc; i++) {
                 // compare saved 0 - 6 max and current max
                 same = cmpMax(bssid, iter, framehdr->i_transmitter_addr, cmp);
@@ -302,11 +290,13 @@ int main(int argc, char *argv[]) {
             else if(same == 2) {
                 // not same
                 for(int i=0; i<1; i++) {
-                    saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
+                    saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6, pwr, radiotaphdr->ssi_signal);
 
-                    checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, six+6, pwr, radiotaphdr->ssi_signal);
-
-                    getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
+                   // getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
+                }
+                for(int i=0; i<inc; i++) {
+                    onlyPrint(bssid, iter, cmp2, pwr, framehdr->i_transmitter_addr, radiotaphdr->ssi_signal);
+                    cmp2 += 6;
                 }
                 six += 6;
                 // If the mac address added,  the inc increase one.
