@@ -81,7 +81,48 @@ void saveBssid(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *tran
     cout << "\t";
 }
 
-int onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
+void getpwr(map<int, int>* pwr, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
+
+    (*pwr).insert(map<int, int>::value_type(num, (int)pwrpacket));
+
+}
+
+int checkmaclocation(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int num,
+                     map<int, int>* pwr, u_int8_t pwrpacket) {
+
+    int callpwr = 0, addr = 0;
+    if(num == 0) {
+          for(int i=num; i<num+6; i++) {
+              iter = (*bssid).find(i);
+              if((int)transmitter_addr[addr] == (int)iter->second) {
+                  getpwr(pwr, iter, pwrpacket, num);
+              }
+              else {
+                  callpwr = 1; // To call only one time
+              }
+          }
+          iter = (*pwr).find(num);
+          cout << "-" << dec << 256-(int)iter->second << "@@\t";
+      }
+      else {
+          for(int i=num; i<num+6; i++) {
+              iter = (*bssid).find(i);
+              if((int)transmitter_addr[addr] == (int)iter->second) {
+                  getpwr(pwr, iter, pwrpacket, num);
+              }
+              else {
+                  callpwr = 1; // To call only one time
+              }
+          }
+          iter = (*pwr).find(num);
+          cout << "-" << dec << 256-(int)iter->second << "@@\t";
+      }
+
+    return callpwr;
+}
+
+int onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num,
+              map<int, int>* pwr, uint8_t *bssidpacket, u_int8_t pwrpacket) {
 
     cout << " ";
     for(int i=num; i<num+6; i++) {
@@ -91,43 +132,9 @@ int onlyPrint(map<int, int>* bssid, map<int, int>::iterator iter, int num) {
     }
     cout << "\t";
 
-    return num;
-}
+    checkmaclocation(bssid, iter, bssidpacket, num, pwr, pwrpacket);
 
-void getpwr(map<int, int>* pwr, map<int, int>::iterator iter, u_int8_t pwrpacket, int num) {
-
-    (*pwr).insert(map<int, int>::value_type(num, (int)pwrpacket));
-    iter = (*pwr).find(num);
-
-    cout << "-" << dec << 256-(int)iter->second << "\t";
-
-}
-
-int checkmaclocation(map<int, int>* bssid, map<int, int>::iterator iter, uint8_t *transmitter_addr, int cmp1) {
-
-    int value = 0, addr = 0, save = 0;
-    if(cmp1==0) {
-        for(int i=0; i<6; i++) {
-            iter = (*bssid).find(i);
-            if((int)iter->second == (int)transmitter_addr[addr]) {
-                if(cmp1%6==0) save = cmp1;
-                value = save;
-                addr++;
-            }
-        }
-    }
-    else {
-        for(int i=cmp1; i<cmp1+6; i++) {
-            iter = (*bssid).find(i);
-            if((int)iter->second == (int)transmitter_addr[addr]) {
-                if(cmp1%6==0) save = cmp1;
-                value = save;
-                addr++;
-            }
-        }
-    }
-
-    return value;
+    return printpwr;
 }
 
 
@@ -265,7 +272,11 @@ int main(int argc, char *argv[]) {
         if(first == 0) {
             // It only starts first
             saveBssid(bssid, iter, framehdr->i_transmitter_addr, 0); // 0 - 6, save original
+
             getpwr(pwr, iter, radiotaphdr->ssi_signal, 0);
+            iter = (*pwr).find(0);
+            cout << "-" << dec << 256-(int)iter->second << "\t";
+
             getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
             first = 1;
         }
@@ -276,16 +287,12 @@ int main(int argc, char *argv[]) {
                 same = cmpMax(bssid, iter, framehdr->i_transmitter_addr, cmp);
                 cmp += 6;
 
-
                 if(same == 1) break;
             }
             if(same == 1) {
                 // If it same, only print
                 for(int i=0; i<inc; i++) {
-                    onlyPrint(bssid, iter, cmp1); // print original mac
-
-                    maclocation = checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, cmp1);
-                    getpwr(pwr, iter, radiotaphdr->ssi_signal, maclocation);
+                    onlyPrint(bssid, iter, cmp1, pwr, framehdr->i_transmitter_addr, radiotaphdr->ssi_signal); // print original mac
 
                     getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
 
@@ -297,8 +304,7 @@ int main(int argc, char *argv[]) {
                 for(int i=0; i<1; i++) {
                     saveBssid(bssid, iter, framehdr->i_transmitter_addr, six+6);
 
-                    maclocation = checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, six+6);
-                    getpwr(pwr, iter, radiotaphdr->ssi_signal, maclocation);
+                    checkmaclocation(bssid, iter, framehdr->i_transmitter_addr, six+6, pwr, radiotaphdr->ssi_signal);
 
                     getbeacons(framehdr->i_type, beacon_frame_count, Qospacket, iter, inc);
                 }
@@ -348,4 +354,5 @@ int main(int argc, char *argv[]) {
     cout << endl;
     return 0;
 }
+
 
