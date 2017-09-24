@@ -86,6 +86,9 @@ int main(int argc, char *argv[])
     //        }
     //    };
     // If you write _bssid[0], It means "struct BSSID[0]"
+    // No match for 'operator[]' ...
+    // _bssid = point class, and the computer can't know BSSID class.
+    // So you have to use _bssid.mac[0]
 
 
     //    map<BSSID, People> pe;
@@ -99,3 +102,4 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
