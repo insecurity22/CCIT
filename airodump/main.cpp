@@ -43,6 +43,18 @@ void printTime() {
             curr_tm->tm_min << endl;
 }
 
+void printByMAC(uint8_t *printArr, int length)
+{
+    for(int i=0; i<length; i++)
+    {
+        cout << setfill('0') << setw(2) << hex << (int)printArr[i];
+        if(i!=5) cout<<":";
+    }
+
+    cout << dec << endl << endl;
+}
+
+
 //void getbeacons(uint8_t type, int beacon_frame_count, map<int, int>* Qospacket, map<int, int>::iterator iter, int num) {
 
 //    iter = (*Qospacket).find(num);
@@ -63,12 +75,13 @@ int main(int argc, char *argv[]) {
     int res;
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_t *pcd; // packet capture descriptor
     const unsigned char *packet;
+    pcap_t *pcd; // packet capture descriptor
 
     RADIOTAP *radiotaphdr; // Radiotap Header
     BEACON_FRAME *framehdr; // 802.11 Beacon frame
     WIRELESS_LAN *wirelesshdr;
+    WIRELESS_LAN2 *wirelesshdr2;
     PKTHDR *pheader;
 
     if(argc != 2) {
@@ -85,10 +98,11 @@ int main(int argc, char *argv[]) {
 
     printTime();
 
-
-    map<Mac, BssidInfo> ap_info;
+    map<Mac, BssidInfo> APMap;
     map<Mac, BssidInfo>::iterator iter;
 
+    BssidInfo APInfo;
+    APInfo.initBssid();
 
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
@@ -98,29 +112,32 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        radiotaphdr = (struct ieee80211_radiotap_header *)packet;
+        radiotaphdr = (RADIOTAP *)packet;
         packet += radiotaphdr->length;
-        framehdr = (struct ieee80211_beacon_frame *)packet;
+        framehdr = (BEACON_FRAME *)packet;
+        packet += sizeof(BEACON_FRAME *) + 16; // To bssid
+        wirelesshdr = (WIRELESS_LAN *)packet;
+        packet += sizeof(WIRELESS_LAN *);
+        wirelesshdr2 = (WIRELESS_LAN2 *)packet;
 
         // BSSID
+        Mac macaddress;
+        memcpy(macaddress.mac_address, framehdr->transmitter_addr, 6);
 
+        if(framehdr->type == htons(0x0008)) {
+            APInfo.beacons += 1;
+        }
 
-//        // #Data
-//        if(framehdr->i_type == 0x0020) {
-//            data_count += 1;
-//            cout << data_count << "\t";
-//        }
-//        else { cout << data_count << "\t";}
+        // #Data
+        if(framehdr->type == htons(0x0020)) {
+            APInfo.data += 1;
+        }
 
-
-        // CH
-//        if(framehdr->i_type == 0x0080) {
-//            cout << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_number
-//                 << setfill('0') << setw(2) << hex << (int)wirelesshdr->tag_length <<
-//                   setfill('0') << setw(2) << hex <<  (int)wirelesshdr->supported_rates[0];
-//    }
-//        else { }
-
+        APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
+        if((iter = APMap.find(macaddress)) != APMap.end()) {
+            printByMAC((uint8_t *)iter->first.mac_address, 6);
+            cout << hex << "\t" << iter->second.beacons << "\t" << iter->second.data << "\t";
+        }
 
         // ESSID
 
