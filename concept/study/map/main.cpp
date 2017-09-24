@@ -47,7 +47,9 @@ int main(int argc, char *argv[])
     //                iter1->second.name <<" "<<iter1->second.weight;
     //    }
 
-    //    if((iter1 = pe.find('h')) != pe.end()) {
+    // *** If same max is exist ... <-- this part
+    // *** Never mind compare. will work operator.
+    //    if((iter1 = pe.find('h')) != pe.end()) {  
     //        cout << iter1->second.data << " " << iter1->second.channel << " " <<
     //                iter1->second.beacons << " " << iter1->second.essid << " ";
     //    }
