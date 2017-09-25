@@ -13,8 +13,8 @@ public:
 
     BssidInfo();
     void initBssid();
-    void getBssidInfo(uint8_t _type, uint8_t _chPacket, unsigned char *_essidPacket);
-   // void saveMac(Mac mac, unsigned char *_packet);
+    int AddBeacons();
+    int AddData();
 };
 
 #endif // BSSIDINFO_H

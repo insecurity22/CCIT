@@ -37,7 +37,7 @@ typedef struct ieee80211_beacon_frame {
 
 typedef struct ieee80211_wireless_LAN {
 
-    int64_t timestamp;
+    uint8_t timestamp[8];
     uint16_t beacon_interval;
     uint16_t capabilities;
     uint8_t ssid_number;

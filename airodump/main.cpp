@@ -30,6 +30,7 @@ typedef struct pcap_pkthdr PKTHDR;
 using namespace std;
 
 void printTime() {
+
     struct tm *curr_tm; // show time to struct
     time_t curr_time;
     curr_time = time(NULL);
@@ -43,36 +44,19 @@ void printTime() {
             curr_tm->tm_min << endl;
 }
 
-void printByMAC(uint8_t *printArr, int length)
+void printMac(uint8_t *printArr, int length)
 {
+    cout << " ";
     for(int i=0; i<length; i++)
     {
         cout << setfill('0') << setw(2) << hex << (int)printArr[i];
         if(i!=5) cout<<":";
     }
-
-    cout << dec << endl << endl;
 }
-
-
-//void getbeacons(uint8_t type, int beacon_frame_count, map<int, int>* Qospacket, map<int, int>::iterator iter, int num) {
-
-//    iter = (*Qospacket).find(num);
-//    if(type == 0x0080) {
-//        beacon_frame_count += 1;
-//        (*Qospacket).insert(map<int, int>::value_type(num, beacon_frame_count));
-
-//        cout << dec << (int)iter->second << "\t\t";
-//    }
-//    else {
-//        cout << dec << (int)iter->second << "\t\t";
-//    };
-
-//}
 
 int main(int argc, char *argv[]) {
 
-    int res;
+    int res, add = 1;
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     const unsigned char *packet;
@@ -120,38 +104,45 @@ int main(int argc, char *argv[]) {
         packet += sizeof(WIRELESS_LAN *);
         wirelesshdr2 = (WIRELESS_LAN2 *)packet;
 
-        // BSSID
+        cout << endl << " BSSID\t\t\tBeacons\t\t#Data\tCH\tESSID" << endl << endl;
+
         Mac macaddress;
-        memcpy(macaddress.mac_address, framehdr->transmitter_addr, 6);
+        memcpy(macaddress.mac_address, framehdr->transmitter_addr, 6); // BSSID
 
-        if(framehdr->type == htons(0x0008)) {
-            APInfo.beacons += 1;
+        switch (framehdr->type) {
+        case 0x80: // Beacons
+            memcpy(APInfo.essid, wirelesshdr->ssid, wirelesshdr->ssid_length); // ESSID
+            APInfo.AddBeacons();
+            APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
+
+            // iter... use
+            //            if((iter=APMap.find(macaddress)) != APMap.end()) {  // exist
+            //                iter->second.
+            //            }
+            break;
+
+        case 0x08: // Data, 0x0020
+            APInfo.AddData();
+            APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
+            break;
+
+        default:
+            break;
         }
 
-        // #Data
-        if(framehdr->type == htons(0x0020)) {
-            APInfo.data += 1;
+        for(iter = APMap.begin(); iter != APMap.end(); ++iter) {
+            printMac((uint8_t *)iter->first.mac_address, 6);
+            cout << hex << "\t"
+                 << iter->second.beacons << "\t\t"
+                 << iter->second.data << "\t\t"
+                 << iter->second.essid << endl;
         }
 
-        APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
-        if((iter = APMap.find(macaddress)) != APMap.end()) {
-            printByMAC((uint8_t *)iter->first.mac_address, 6);
-            cout << hex << "\t" << iter->second.beacons << "\t" << iter->second.data << "\t";
-        }
+        cout << endl << " BSSID\t\t\tSTATION\t\tLost\tFrames\tProbe" << endl;
 
-        // ESSID
-
-//        if(framehdr->i_type == 0x0080) {
-//             for(int i=0; i<framehdr->ssid_length; i++) {
-//               cout << framehdr->ssid[i];
-//             }
-//        }
-
-        cout << endl << endl << endl;
-
+        cout << endl << endl << endl << endl;
     }
 
-    cout << endl;
     return 0;
 }
 

@@ -14,17 +14,14 @@ void BssidInfo::initBssid() {
     data = 0;
 }
 
-void BssidInfo::getBssidInfo(uint8_t _type, uint8_t _chPacket, unsigned char *_essidPacket) {
+int BssidInfo::AddBeacons() {
 
-    if(_type == ntohs(0x0008)) {
-        beacons += 1;
-    }
-    if(_type == ntohs(0x0020)) {
-        data += 1;
-    }
-    channel = _chPacket;
-    memcpy(essid, _essidPacket, sizeof(_essidPacket));
+    return beacons += 1;
+}
 
+int BssidInfo::AddData() {
+
+    return data += 1;
 }
 
 //void BssidInfo::saveMac(Mac mac, unsigned char *_packet) {
