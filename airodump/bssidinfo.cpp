@@ -34,3 +34,5 @@ int BssidInfo::AddData() {
 //    cout << mac << "\t" << beacons << "\t" << data << "\t"
 //         << channel << "\t" << essid << endl;
 //}
+
+

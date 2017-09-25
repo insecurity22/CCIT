@@ -18,3 +18,5 @@ public:
 };
 
 #endif // BSSIDINFO_H
+
+
