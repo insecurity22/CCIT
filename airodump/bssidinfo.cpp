@@ -9,30 +9,21 @@ BssidInfo::BssidInfo() {
 
 }
 
+BssidInfo::BssidInfo(uint8_t packet) {
+    initBssid();
+    switch(packet) { // framehdr->type
+        case 0x80: // beacons
+            beacons += 1;
+            break;
+        case 0x08: // data
+            data += 1;
+            break;
+        default:
+            break;
+    }
+}
+
 void BssidInfo::initBssid() {
     beacons = 0;
     data = 0;
 }
-
-int BssidInfo::AddBeacons() {
-
-    return beacons += 1;
-}
-
-int BssidInfo::AddData() {
-
-    return data += 1;
-}
-
-//void BssidInfo::saveMac(Mac mac, unsigned char *_packet) {
-
-//}
-
-
-//void BssidInfo::printBssidInfo() {
-
-//    cout << mac << "\t" << beacons << "\t" << data << "\t"
-//         << channel << "\t" << essid << endl;
-//}
-
-

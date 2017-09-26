@@ -20,6 +20,7 @@
 #include <time.h>
 #include <pcap.h>
 #include <map>
+#include <ctype.h>
 #include "ieee80211.h"
 #include "mac.h"
 #include "bssidinfo.h"
@@ -56,7 +57,7 @@ void printMac(uint8_t *printArr, int length)
 
 int main(int argc, char *argv[]) {
 
-    int res, add = 1;
+    int res;
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     const unsigned char *packet;
@@ -85,9 +86,8 @@ int main(int argc, char *argv[]) {
     map<Mac, BssidInfo> APMap;
     map<Mac, BssidInfo>::iterator iter;
 
-    BssidInfo APInfo;
-    APInfo.initBssid();
-
+    BssidInfo *APInfo;
+    
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
         if(res == 0) continue;
@@ -106,30 +106,31 @@ int main(int argc, char *argv[]) {
 
         cout << endl << " BSSID\t\t\tBeacons\t\t#Data\tCH\tESSID" << endl << endl;
 
+        // get mac packet
         Mac macaddress;
         memcpy(macaddress.mac_address, framehdr->transmitter_addr, 6); // BSSID
 
-        switch (framehdr->type) {
-        case 0x80: // Beacons
-            memcpy(APInfo.essid, wirelesshdr->ssid, wirelesshdr->ssid_length); // ESSID
-            APInfo.AddBeacons();
-            APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
-
-            // iter... use
-            //            if((iter=APMap.find(macaddress)) != APMap.end()) {  // exist
-            //                iter->second.
-            //            }
-            break;
-
-        case 0x08: // Data, 0x0020
-            APInfo.AddData();
-            APMap.insert(pair<Mac, BssidInfo>(macaddress, APInfo));
-            break;
-
-        default:
-            break;
+        if((iter=APMap.find(macaddress)) != APMap.end()) {
+            // exist mac
+            switch (framehdr->type) {
+                case 0x80: // beacons
+                    iter->second.beacons += 1;
+                    break;
+                case 0x08: // data
+                    iter->second.data += 1;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else { // Add new mac
+            if(framehdr->type == 0x80 || framehdr->type == 0x08) {
+                APInfo = new BssidInfo(framehdr->type);
+                APMap.insert(pair<Mac, BssidInfo>(macaddress, *APInfo));
+            }
         }
 
+        // Print mac and APInfo
         for(iter = APMap.begin(); iter != APMap.end(); ++iter) {
             printMac((uint8_t *)iter->first.mac_address, 6);
             cout << hex << "\t"
@@ -139,6 +140,8 @@ int main(int argc, char *argv[]) {
         }
 
         cout << endl << " BSSID\t\t\tSTATION\t\tLost\tFrames\tProbe" << endl;
+
+
 
         cout << endl << endl << endl << endl;
     }

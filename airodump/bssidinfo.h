@@ -12,9 +12,8 @@ public:
     char essid[30];
 
     BssidInfo();
+    BssidInfo(uint8_t packet);
     void initBssid();
-    int AddBeacons();
-    int AddData();
 };
 
 #endif // BSSIDINFO_H
