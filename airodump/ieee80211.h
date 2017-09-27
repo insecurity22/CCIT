@@ -5,6 +5,7 @@
 #define IEEE80211_ADDR_LEN 6
 
 typedef struct ieee80211_radiotap_header {
+    // header length = 36
 
     uint8_t revision;
     uint8_t pad;
@@ -42,7 +43,7 @@ typedef struct ieee80211_wireless_LAN {
     uint16_t capabilities;
     uint8_t ssid_number;
     uint8_t ssid_length;
-    uint8_t ssid[30]; // change
+    uint8_t ssid[32]; // change
 
 }WIRELESS_LAN;
 
