@@ -5,16 +5,15 @@
 
 class StationInfo
 {
-    Mac mac;
-    Mac station;
-    int rate;
+public:
+    Mac bssid;
     int lost;
     int frames;
-    int probe;
+    uint8_t probe[30];
 
-public:
     StationInfo();
-    void printStationInfo();
+    StationInfo(uint8_t packet);
+    void initStation();
 };
 
 #endif // STATIONINFO_H

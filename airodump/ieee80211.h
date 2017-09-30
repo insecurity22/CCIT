@@ -11,11 +11,13 @@ typedef struct ieee80211_radiotap_header {
     uint8_t pad;
     uint16_t length; /* entire length */
     uint8_t present_flags[8]; /* fields present */
+    uint8_t zero[4]; // 0 4byte
 
     uint8_t mac_timestamp[8];
     uint8_t flags;
     uint8_t data_rate; /* in .5 Mb/s units */
-    uint16_t channel_frequency;
+    uint8_t channel_frequency1;
+    uint8_t channel_frequency2;
     uint16_t channel_flags;
     uint8_t ssi_signal;
     uint16_t rx_flags;
@@ -57,6 +59,54 @@ typedef struct ieee80211_wireless_LAN2 {
     uint8_t channel;
 
 }WIRELESS_LAN2;
+
+typedef struct ieee80211_wireless_LAN_probe {
+
+    uint8_t fixed_parameters[12];
+    uint8_t tag_number;
+    uint8_t tag_length;
+    uint8_t ssid[30];
+}WIRELESS_LAN_PROBE;
+
+typedef struct ieee80211_request_to_send {
+
+    uint16_t type;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6];
+    uint8_t frame_check_seq[4];
+
+}REQUEST_TO_SEND;
+
+typedef struct ieee80211_Qos_Data {
+
+    uint8_t type;
+    uint8_t frame_control_field;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6];
+    uint8_t source_address[6];
+
+}QOS_DATA;
+
+typedef struct ieee80211_block_ack {
+
+    uint16_t type;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6];
+
+}BLOCK_ACK;
+
+typedef struct ieee80211_probe_request {
+
+    uint16_t type;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6];
+    uint8_t bssid[6];
+
+}PROBE_REQUEST;
 
 #endif // IEEE80211_H
 
