@@ -6,7 +6,7 @@
 class StationInfo
 {
 public:
-    Mac bssid;
+    uint8_t bssid[6];
     int lost;
     int frames;
     uint8_t probe[30];

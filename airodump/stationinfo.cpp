@@ -16,9 +16,9 @@ StationInfo::StationInfo(uint8_t packet) {
 }
 
 void StationInfo::initStation() {
-    memset(bssid.mac_address, NULL, 6);
     lost = 0;
     frames = 0;
+//    memset(bssid.mac_address, NULL, 6);
     memset(probe, NULL, sizeof(probe));
 }
 
