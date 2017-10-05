@@ -6,6 +6,7 @@
 #include <time.h>
 #include <pcap.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <map>
 #include "mac.h"
 #include "ieee80211.h"
@@ -58,10 +59,9 @@ int main(int argc, char *argv[]) {
     PKTHDR *pheader;
 
     PROBE_REQUEST *probehdr;
-    BLOCK_ACK *blockhdr;
-    QOS_DATA *qoshdr;
-    REQUEST_TO_SEND *requestsendhdr;
     WIRELESS_LAN_PROBE *wirelesshdr_probe;
+    QOS_DATA *qoshdr;
+    DATA *datahdr;
     NULL_FUNCTION *nullfunctionhdr;
 
     if(argc != 2) {
@@ -98,27 +98,34 @@ int main(int argc, char *argv[]) {
         sleep(0.95);
         printTime();
 
+
+        // Setting packet location
         radiotaphdr = (RADIOTAP *)packet;
         packet += radiotaphdr->length;
 
         framehdr = (BEACON_FRAME *)packet;
         probehdr = (PROBE_REQUEST *)packet;
-        blockhdr = (BLOCK_ACK *)packet;
+        datahdr = (DATA *)packet;
         qoshdr = (QOS_DATA *)packet;
         nullfunctionhdr = (NULL_FUNCTION *)packet;
         packet += sizeof(BEACON_FRAME *) + 16; // because destination, source address, and seq
 
         wirelesshdr = (WIRELESS_LAN *)packet;
         wirelesshdr_probe = (WIRELESS_LAN_PROBE *)packet;
-        packet += sizeof(WIRELESS_LAN *) + 6 + wirelesshdr->ssid_length; // supported rate, ds
+        packet += sizeof(WIRELESS_LAN *) + 6 + wirelesshdr->ssid_length;
 
         wirelesshdr2 = (WIRELESS_LAN2 *)packet;
 
 
+
+        // --- FIRST COME PACKET ---
         // TOP, BSSID
         Mac bssidMac;
         if(framehdr->type == 0x80) { // beacons
-            memcpy(bssidMac.mac_address, framehdr->bssid, 6); // BSSID
+            memcpy(bssidMac.mac_address, framehdr->bssid, 6);
+        }
+        if(framehdr->type == 0x08) { // data
+            memcpy(bssidMac.mac_address, datahdr->transmitter_address, 6);
         }
 
         // BOTTOM, STATION
@@ -134,9 +141,10 @@ int main(int argc, char *argv[]) {
             memcpy(stationMac.mac_address, probehdr->transmitter_address, 6);
         }
 
-        // ***************** TOP *****************
-        // If the mac exist in the map
-        if((iter=APMap.find(bssidMac)) != APMap.end()) {
+
+
+        // ***************** TOP(bssid beacons part) *****************
+        if((iter=APMap.find(bssidMac)) != APMap.end()) {  // If the mac exist in the map
             switch (framehdr->type) {
             case 0x80: // beacons
                 iter->second.beacons += 1;
@@ -147,21 +155,23 @@ int main(int argc, char *argv[]) {
             }
         }
         else { // Add new mac
-            if(framehdr->type==0x80) { // beacons
+            switch (framehdr->type) {
+            case 0x80: // beacons
                 APInfo = new BssidInfo(framehdr->type); // + 1
                 memcpy(APInfo->essid, wirelesshdr->ssid, wirelesshdr->ssid_length); // ESSID
                 APInfo->channel = wirelesshdr2->channel;
-            }
-
-            if(framehdr->type==0x08) { // data
+                APMap.insert(pair<Mac, BssidInfo>(bssidMac, *APInfo));
+                break;
+            case 0x08: // data
                 APInfo = new BssidInfo(framehdr->type); // + 1
-//                memset(APInfo->essid, NULL, sizeof(APInfo->essid));
-//                APInfo->channel = radiotaphdr->channel_frequency1;
+                APInfo->channel = radiotaphdr->channel_frequency2;
+                memset(APInfo->essid, NULL, 30);
+                APMap.insert(pair<Mac, BssidInfo>(bssidMac, *APInfo));
+                break;
             }
-            APMap.insert(pair<Mac, BssidInfo>(bssidMac, *APInfo));
        }
 
-        // ***************** BOTTOM *****************
+        // ***************** BOTTOM(station part) *****************
         // If the mac exist in the map
         if((iter2=StationMap.find(stationMac)) != StationMap.end()) {
             switch (probehdr->type) {
@@ -172,7 +182,6 @@ int main(int argc, char *argv[]) {
         }
         else { // Add new mac
             switch (probehdr->type) {
-            // STATION
             case 0x08: // Data
                 iter2->second.frames += 1;
                 break;
@@ -211,7 +220,6 @@ int main(int argc, char *argv[]) {
 
         // ***************** PRINT BOTTOM *****************
         cout << endl << " BSSID\t\t\tSTATION\t\t\tFrames\tProbe" << endl;
-        // Print mac and StationInfo
         for(iter2=StationMap.begin(); iter2!=StationMap.end(); ++iter2) {
             if(memcmp(iter2->second.bssid, broadcast, 6)==0) {
                 cout << " (not associated) ";

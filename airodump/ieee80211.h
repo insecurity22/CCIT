@@ -67,16 +67,6 @@ typedef struct ieee80211_wireless_LAN_probe {
 
 }WIRELESS_LAN_PROBE;
 
-typedef struct ieee80211_request_to_send {
-
-    uint16_t type;
-    uint16_t duration;
-    uint8_t receiver_address[6];
-    uint8_t transmitter_address[6];
-    uint8_t frame_check_seq[4];
-
-}REQUEST_TO_SEND;
-
 typedef struct ieee80211_Qos_Data {
 
     uint8_t type;
@@ -88,6 +78,18 @@ typedef struct ieee80211_Qos_Data {
     uint16_t seq;
 
 }QOS_DATA;
+
+typedef struct ieee80211_data {
+
+    uint8_t type;
+    uint8_t frame_control_field;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6]; // Station
+    uint8_t source_address[6];
+    uint16_t seq;
+
+}DATA;
 
 typedef struct ieee80211_block_ack {
 
