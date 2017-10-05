@@ -3,22 +3,18 @@
 
 StationInfo::StationInfo()
 {
-
 }
 
 StationInfo::StationInfo(uint8_t packet) {
     initStation();
-    switch(packet) { // framehdr->type
-        case 0x08: // probe
-            frames += 1;
-            break;
+    if(packet==0x40) { // probe
+        frames += 1;
     }
 }
 
 void StationInfo::initStation() {
-    lost = 0;
-    frames = 0;
-//    memset(bssid.mac_address, NULL, 6);
+    memset(bssid, NULL, 6);
     memset(probe, NULL, sizeof(probe));
+    frames = 0;
 }
 

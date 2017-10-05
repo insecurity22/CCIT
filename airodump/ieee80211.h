@@ -61,11 +61,10 @@ typedef struct ieee80211_wireless_LAN2 {
 }WIRELESS_LAN2;
 
 typedef struct ieee80211_wireless_LAN_probe {
-
-    uint8_t fixed_parameters[12];
     uint8_t tag_number;
     uint8_t tag_length;
     uint8_t ssid[30];
+
 }WIRELESS_LAN_PROBE;
 
 typedef struct ieee80211_request_to_send {
@@ -84,8 +83,9 @@ typedef struct ieee80211_Qos_Data {
     uint8_t frame_control_field;
     uint16_t duration;
     uint8_t receiver_address[6];
-    uint8_t transmitter_address[6];
-    uint8_t source_address[6];
+    uint8_t transmitter_address[6]; // Station
+    uint8_t destination_address[6];
+    uint16_t seq;
 
 }QOS_DATA;
 
@@ -100,13 +100,26 @@ typedef struct ieee80211_block_ack {
 
 typedef struct ieee80211_probe_request {
 
-    uint16_t type;
+    uint8_t type;
+    uint8_t control_field;
     uint16_t duration;
     uint8_t receiver_address[6];
     uint8_t transmitter_address[6];
     uint8_t bssid[6];
 
 }PROBE_REQUEST;
+
+typedef struct ieee80211_null_function {
+
+    uint16_t type;
+    uint16_t duration;
+    uint8_t receiver_address[6];
+    uint8_t transmitter_address[6];
+    uint8_t destination_address[6];
+    uint8_t bssid[6];
+    uint8_t station_address[6];
+
+}NULL_FUNCTION;
 
 #endif // IEEE80211_H
 

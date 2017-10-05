@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
     const unsigned char *packet;
+    uint8_t broadcast[6];
     pcap_t *pcd; // packet capture descriptor
 
     RADIOTAP *radiotaphdr; // Radiotap Header
@@ -61,6 +62,7 @@ int main(int argc, char *argv[]) {
     QOS_DATA *qoshdr;
     REQUEST_TO_SEND *requestsendhdr;
     WIRELESS_LAN_PROBE *wirelesshdr_probe;
+    NULL_FUNCTION *nullfunctionhdr;
 
     if(argc != 2) {
         cout << "usage : " << argv[0] << " interface_name" << endl;
@@ -82,7 +84,8 @@ int main(int argc, char *argv[]) {
 
     BssidInfo *APInfo;
     StationInfo *StationClass;
-    
+    memset(broadcast, 0xff, 6);
+
     while((res = pcap_next_ex(pcd, &pheader, &packet)) >= 0) {
 
         if(res == 0) continue;
@@ -92,6 +95,7 @@ int main(int argc, char *argv[]) {
         }
 
         system("clear");
+        sleep(0.95);
         printTime();
 
         radiotaphdr = (RADIOTAP *)packet;
@@ -99,6 +103,9 @@ int main(int argc, char *argv[]) {
 
         framehdr = (BEACON_FRAME *)packet;
         probehdr = (PROBE_REQUEST *)packet;
+        blockhdr = (BLOCK_ACK *)packet;
+        qoshdr = (QOS_DATA *)packet;
+        nullfunctionhdr = (NULL_FUNCTION *)packet;
         packet += sizeof(BEACON_FRAME *) + 16; // because destination, source address, and seq
 
         wirelesshdr = (WIRELESS_LAN *)packet;
@@ -108,12 +115,24 @@ int main(int argc, char *argv[]) {
         wirelesshdr2 = (WIRELESS_LAN2 *)packet;
 
 
+        // TOP, BSSID
         Mac bssidMac;
-        if(framehdr->type == 0x80) {
-            memcpy(bssidMac.mac_address, framehdr->transmitter_addr, 6); // BSSID
+        if(framehdr->type == 0x80) { // beacons
+            memcpy(bssidMac.mac_address, framehdr->bssid, 6); // BSSID
         }
 
-        Mac stationMac; // Probe Request Packet
+        // BOTTOM, STATION
+        Mac stationMac;
+        if(probehdr->type == 0x88) { // Qos data
+            if(probehdr->control_field == 0x41) memcpy(stationMac.mac_address, qoshdr->transmitter_address, 6);
+            else if(probehdr->control_field == 0x42) memcpy(stationMac.mac_address, qoshdr->receiver_address, 6);
+        }
+        if(probehdr->type == 0x48) { // Null function
+            memcpy(stationMac.mac_address, nullfunctionhdr->transmitter_address, 6);
+        }
+        if(probehdr->type == 0x40) { // Probe Request, broadcast
+            memcpy(stationMac.mac_address, probehdr->transmitter_address, 6);
+        }
 
         // ***************** TOP *****************
         // If the mac exist in the map
@@ -128,54 +147,60 @@ int main(int argc, char *argv[]) {
             }
         }
         else { // Add new mac
-            if(framehdr->type==0x80 || framehdr->type==0x08) {
-                APInfo = new BssidInfo(framehdr->type);
+            if(framehdr->type==0x80) { // beacons
+                APInfo = new BssidInfo(framehdr->type); // + 1
                 memcpy(APInfo->essid, wirelesshdr->ssid, wirelesshdr->ssid_length); // ESSID
-
-                if(framehdr->type==0x08) { // Data Packet ESSID and Channel
-                    memset(APInfo->essid, NULL, sizeof(APInfo->essid));
-                    APInfo->channel = radiotaphdr->channel_frequency1;
-                }
-                else { // Beacons Packet Channel
-                    APInfo->channel = wirelesshdr2->channel;
-                }
-                APMap.insert(pair<Mac, BssidInfo>(bssidMac, *APInfo));
+                APInfo->channel = wirelesshdr2->channel;
             }
-        }
+
+            if(framehdr->type==0x08) { // data
+                APInfo = new BssidInfo(framehdr->type); // + 1
+//                memset(APInfo->essid, NULL, sizeof(APInfo->essid));
+//                APInfo->channel = radiotaphdr->channel_frequency1;
+            }
+            APMap.insert(pair<Mac, BssidInfo>(bssidMac, *APInfo));
+       }
 
         // ***************** BOTTOM *****************
         // If the mac exist in the map
         if((iter2=StationMap.find(stationMac)) != StationMap.end()) {
-            switch(framehdr->type) {
-            case 0x80:
-                StationClass->frames += 1;
-                break;
-            case 0x40: // probe packet
-                memcpy(StationClass->probe, wirelesshdr_probe->ssid, wirelesshdr_probe->tag_length);
+            switch (probehdr->type) {
+            case 0x40: // probe
+                iter2->second.frames += 1;
                 break;
             }
         }
         else { // Add new mac
-            switch (framehdr->type) {
-            case 0x40: // probe
-                sleep(3);
-                printMac(probehdr->transmitter_address, 6);
-                printMac(probehdr->receiver_address, 6);
-                sleep(3);
-
-                StationClass = new StationInfo(framehdr->type);
-                memcpy(stationMac.mac_address, probehdr->transmitter_address, 6); // STATION
+            switch (probehdr->type) {
+            // STATION
+            case 0x08: // Data
+                iter2->second.frames += 1;
+                break;
+            case 0x88: // Qos Data
+                StationClass = new StationInfo(probehdr->type);
+                if(qoshdr->frame_control_field == 0x41) memcpy(StationClass->bssid, qoshdr->receiver_address, 6);
+                else if(qoshdr->frame_control_field == 0x42) memcpy(StationClass->bssid, qoshdr->transmitter_address, 6);
+                StationMap.insert(pair<Mac, StationInfo>(stationMac, *StationClass));
+                break;
+            case 0x48: // Null function
+                StationClass = new StationInfo(probehdr->type);
+                memcpy(stationMac.mac_address, nullfunctionhdr->transmitter_address, 6);
+                memcpy(StationClass->bssid, nullfunctionhdr->receiver_address, 6);
+                StationMap.insert(pair<Mac, StationInfo>(stationMac, *StationClass));
+                break;
+            case 0x40: // Probe request packet
+                StationClass = new StationInfo(probehdr->type);
                 memcpy(StationClass->bssid, probehdr->receiver_address, 6); // BSSID
+                memcpy(StationClass->probe, wirelesshdr_probe->ssid, wirelesshdr_probe->tag_length); // ESSID PROBE
                 StationMap.insert(pair<Mac, StationInfo>(stationMac, *StationClass)); // Make map
                 break;
             }
-            cout << (int)probehdr->type << " " << (int)probehdr->duration << " " << (int)probehdr->receiver_address[0] << endl;
-        }
+          }
 
         // ***************** PRINT TOP *****************
         cout << endl << " BSSID\t\t\tBeacons\t   #Data\tCH\tESSID" << endl << endl;
         // Print mac and APInfo
-        for(iter = APMap.begin(); iter != APMap.end(); ++iter) {
+        for(iter=APMap.begin(); iter!=APMap.end(); ++iter) {
             printMac((uint8_t *)iter->first.mac_address, 6);
             cout << "\t" << dec
                  << (int)iter->second.beacons << "\t   "
@@ -185,14 +210,18 @@ int main(int argc, char *argv[]) {
         }
 
         // ***************** PRINT BOTTOM *****************
-        cout << endl << " BSSID\t\t\tSTATION\t\t\tLost\tFrames\tProbe" << endl;
+        cout << endl << " BSSID\t\t\tSTATION\t\t\tFrames\tProbe" << endl;
         // Print mac and StationInfo
         for(iter2=StationMap.begin(); iter2!=StationMap.end(); ++iter2) {
-            printMac((uint8_t *)iter2->second.bssid, 6); // Bssid
+            if(memcmp(iter2->second.bssid, broadcast, 6)==0) {
+                cout << " (not associated) ";
+            }
+            else {
+                printMac((uint8_t *)iter2->second.bssid, 6); // Bssid
+            }
             cout << "     ";
             printMac((uint8_t *)iter2->first.mac_address, 6); // Station
             cout << "\t" << dec
-                 << iter2->second.lost << "\t"
                  << iter2->second.frames << "\t"
                  << iter2->second.probe << endl;
         }

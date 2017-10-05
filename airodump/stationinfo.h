@@ -7,7 +7,6 @@ class StationInfo
 {
 public:
     uint8_t bssid[6];
-    int lost;
     int frames;
     uint8_t probe[30];
 
