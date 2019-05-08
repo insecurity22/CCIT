@@ -38,13 +38,13 @@ int Printf_ip(const u_char *packet) {
     iph = (struct ip *)packet;
     unsigned short ether_type;
     ether_type = ntohs(ep->h_proto);
-    
+
     printf("\n *---- IP ----*\n");
     if (ether_type == ETHERTYPE_IP) {
         printf("Src ip : %s\n", inet_ntoa(iph->ip_src));
         printf("Dst ip : %s\n", inet_ntoa(iph->ip_dst));
     }
-    else printf("\nNone ip packet.\n");
+    else printf("None ip packet.\n");
 }
 
 int Printf_tcp(const u_char *packet) {
@@ -67,7 +67,7 @@ int Printf_tcp_data(const u_char data[], int len) {
         printf("%02x ", data[cnt]);
         cnt++;
     }
-    printf("\n\n");
+    printf("\n");
 }
 
 int Printf_http_host(const u_char packet[], int len) {
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     }
 
     while ((res = pcap_next_ex(pcd, &pkthdr, &pkt_data)) >= 0) {
-        printf("%d", res);
+
         if (res == 0); // lost packet
         if (res < 0) {
             printf("Error reading the packets: %s\n", pcap_geterr(pcd));
