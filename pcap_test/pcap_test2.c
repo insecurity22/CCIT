@@ -11,11 +11,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-
-struct ethhdr *ep;
-struct ip *iph;
-struct tcphdr *tcph;
-
 void eth_cal(unsigned char *packet) {
     for (int i = 0; i<6; i++) {
         printf("%02x", packet[i]);
@@ -24,6 +19,9 @@ void eth_cal(unsigned char *packet) {
     printf("]\n");
 }
 
+struct ethhdr *ep;
+struct ip *iph;
+struct tcphdr *tcph;
 int Printf_ethernet(const u_char *packet) {
 
     ep = (struct ethhdr *)packet;
@@ -32,16 +30,13 @@ int Printf_ethernet(const u_char *packet) {
     printf("Src mac : [");
     eth_cal(ep->h_source);
 
-
     printf("Dst mac : [");
     eth_cal(ep->h_dest);
 }
 
-
 int Printf_ip(const u_char *packet) {
 
     iph = (struct ip *)packet;
-
     unsigned short ether_type;
     ether_type = ntohs(ep->h_proto);
 
@@ -57,39 +52,29 @@ int Printf_tcp(const u_char *packet) {
 
     tcph = (struct tcphdr *)packet;
 
-
     printf("\n ***** Tcp header *****\n");
     if (iph->ip_p == IPPROTO_TCP) {
         printf("Src Port : %d\n", ntohs(tcph->th_sport));
         printf("Dst Port : %d\n", ntohs(tcph->th_dport));
-    }
-    else printf("None tcp packet.\n");
-
+    } else printf("None tcp packet.\n");
 }
 
 int Printf_tcp_data(const u_char data[], int len) {
 
     int cnt = 0;
-
-
     printf("\n ***** TCP Data *****");
     while (len--) {
-
         if ((cnt % 16) == 0) printf("\n");
         if (cnt == 80) break;
-
         printf("%02x ", data[cnt]);
         cnt++;
     }
-
     printf("\n\n");
-
 }
 
 int Printf_http_host(const u_char packet[], int len) {
 
     int cnt = 0;
-
     printf(" ***** http host ***** \n");
     while (len--){
         cnt++;
@@ -104,9 +89,7 @@ int Printf_http_host(const u_char packet[], int len) {
     }
 }
 
-
 int main(int argc, char **argv) {
-
 
     char *dev;
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -117,16 +100,12 @@ int main(int argc, char **argv) {
     pcap_t *pcd; // packet capture descriptor
     const u_char *pkt_data;
 
-
     bpf_u_int32 net;
     bpf_u_int32 mask;
 
     int res, len = 0;
-
-
-
     if (argc != 3) {
-        printf("usage : %s device_name \"port 80\"<-- filter_part\n", argv[0]);
+        printf("usage : %s device_name \"port 80\"", argv[0]); /* "port 80" is filter */
         return -1;
     }
 
@@ -158,13 +137,10 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-
-
-    while ((res = pcap_next_ex(pcd, &pkthdr, &pkt_data)) >= 0){
-printf("%d", res);
-   if (res == 0); // It can lost packet
-        if (res < 0)
-        {
+    while ((res = pcap_next_ex(pcd, &pkthdr, &pkt_data)) >= 0) {
+        printf("%d", res);
+        if (res == 0); // lost packet
+        if (res < 0) {
             printf("Error reading the packets: %s\n", pcap_geterr(pcd));
             return -1;
         }
@@ -182,8 +158,5 @@ printf("%d", res);
         Printf_tcp_data(pkt_data, len);
         Printf_http_host(pkt_data, len);
         printf("\n\n\n");
-
     }
-
 }
-
