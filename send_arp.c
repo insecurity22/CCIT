@@ -14,9 +14,9 @@
 #define PROMISCUOUS 1
 
 struct ether_arp_hdr {
-    unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
-    unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/
-    __be16        h_proto;              /* packet type ID field	*/
+    unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
+    unsigned char h_source[ETH_ALEN];	/* source ether addr	*/
+    __be16 h_proto;              /* packet type ID field	*/
 
     unsigned short int ar_hrd;      	/* Format of hardware address.  */
     unsigned short int ar_pro;      	/* Format of protocol address.  */
