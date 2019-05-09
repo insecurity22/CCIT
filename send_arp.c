@@ -92,10 +92,7 @@ int main(int argc, char *argv[])
     original2 = value_change(argv[4], eth_arp_hdr->h_source, ":", 16);
 
     eth_arp_hdr->h_proto = htons(ETHERTYPE_ARP);
-    printf("Ether type : 0x0%x\n\n", htons(eth_arp_hdr->h_proto));
-
-    //packet += sizeof(struct ethhdr);
-    //arp = (struct arphdr *)packet;
+    printf("Ether type : 0x0%x\n\n", htons(et
 
     // ARP data
     eth_arp_hdr->ar_hrd = 0x0001;
